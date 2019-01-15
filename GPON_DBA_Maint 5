@@ -1,0 +1,271 @@
+支持基于Tcont统计DBRu的发送次数.app.tcl
+
+namespace eval TestApp {
+
+    proc TestLogic { args } {
+		
+        
+        # 环境信息清理动作
+        AsicEnvironmentInfoInitialization
+        
+        #===================================================================================
+        #  系统变量，测试人员不可更改
+        #===================================================================================
+        # 取得当前过程名
+        set sProcName [::TestLib::GetProcedureName -complete]
+        # 向窗口打印提示信息
+        set strCmd "========Begin:$aTestCaseData(testCaseNo)=========\033\033"
+		::Common::CSend $term1 -r strRet -s [list "#"] -t 10000 "$strCmd"
+				
+		#获取测试数据，重新封装到数组Data里去
+        CommonArgsToArray $aTestCaseData(args) Data
+        #当前目录下执行的测试逻辑文件
+        set strFileName [string map {app.tcl txt} $::TestLib::naLibData(testLogicFileName)]
+      	#使用parseLogicFile执行测试逻辑
+        set res [parseLogicFile $strFileName]
+	
+	    #　收集环境信息
+		AsicEnvironmentInfoCollect $res	
+	
+        #显示执行结果
+        ShowTraceMessage -level 10 -msg "result = $res"
+        #返回执行结果
+        return $res
+        
+    }
+    #===================================================================================
+    # 系统函数调用，测试人员不可更改
+    #   测试逻辑执行入口
+    #===================================================================================
+    #!!================================================================
+    #过 程 名：    Main
+    #程 序 包：
+    #功能类别：
+    #过程描述：    （包含范例）
+    #   载入package TestLib
+    #   执行测试逻辑
+    #参数说明：
+    #返 回 值：
+    #   0:  执行成功
+    #   1:  执行失败
+    #函数作者：    Peixing.Lin.(14507)
+    #生成日期：    2003-03-04 20:04:06
+    #修改纪录：
+    #!!================================================================
+    proc Main {} {
+        global auto_path
+        
+        # 默认执行成功
+        set result 0
+        if {([lsearch -exact [namespace children ::] ::TestLib] != -1)} {
+            # 如果TestLib已经载入，则退出；
+            return $result
+        }
+        set sTestLibDir             "Lib/CommonLib"
+        set sScriptsDir             "Scripts"
+        set sTestLogicFilePathName  ""
+        set sAutoTestPath           ""
+        set sTestLibPath            ""
+        # 得到带绝对路径的测试逻辑文件名
+        set sTestLogicFilePathName  [info script]
+        if { $sTestLogicFilePathName == "" } {
+            set sTestLogicFilePathName  [tgetcurfilepath]
+        }
+
+        set lPath   [file split $sTestLogicFilePathName]
+        # 得到Scripts目录名在测试逻辑路径列表中的索引
+        set iIdx -1
+        for { set i 0 } { $i < [llength $lPath] } { incr i} {
+            # 不区分大小写
+            if { [string equal -nocase $sScriptsDir [lindex $lPath $i]] != 1} {
+                continue
+            }
+            set iIdx $i
+            break
+        }
+        
+        #set iIdx    [lsearch -exact $lPath $sScriptsDir]
+        if {  -1 == $iIdx } {
+            puts "TestApp-测试逻辑脚本没有按照目录结构的定义放在规定的位置Scripts目录下!"
+            set result 1
+            return $result
+        } else {
+            #取得自动化工作目录
+            set sAutoTestPath [lindex $lPath 0]
+            for {set i 1} {$i < $iIdx} {incr i} {
+                set sAutoTestPath [file join $sAutoTestPath [lindex $lPath $i]]
+            }
+        }
+
+        # 得到package TestLib函数库所在的路径
+        set sTestLibPath [file join $sAutoTestPath $sTestLibDir]
+
+        # 将自动化体系的函数库的路径加入tcl系统函数库路径变量中
+        lappend auto_path $sTestLibPath
+        # 如果没有包索引文件，则创建
+        if { ![file exists [file join $sTestLibPath "pkgIndex.tcl"]] } {
+            if {[catch [list pkg_mkIndex $sTestLibPath *.tcl] errMsg]} {
+                puts "TestApp: 创建运行引索引失败！"
+                puts "TestApp: 失败信息：$errMsg"
+                set result 1
+                return $result
+            }
+        }
+        # 载入package TestLib
+        set status [ catch { package require TestLib } pkgVersion ]
+        if { $status != 0 } {
+            puts "TestApp: 无法找到TestLib的路径；\n$::auto_path\n错误信息: $pkgVersion\n"
+            set result 1
+            return $result
+        } else {
+            puts "TestApp: 载入测试包TestLib,版本号：$pkgVersion"
+        }
+        
+        # 调用支撑代码接口，执行测试逻辑
+        set result [::TestLib::RunEngine    ::TestApp::TestLogic     $sTestLogicFilePathName]
+        
+        # 进行用例执行后的信息收集
+        
+        return $result
+    }
+}
+
+# 测试逻辑执行入口点
+::TestApp::Main
+#--<end>--
+
+
+支持基于Tcont统计DBRu的发送次数.cfg
+[TestLogicInfo]
+testClusterNames= IasGlobal/AsicGponTc
+productLib=
+toolLib=
+
+# 在TERM1控制台窗口上的建立/恢复配置命令/脚本 
+TERM1,SetupCommands=
+TERM1,RestoreCommands=
+TERM1,SetupScripts=
+
+ ###calculate-period  max-bandwidth-usage,min-loop-delay, manual   single-frame   calculate-period
+ 
+[TestCaseData]
+FIELDS,      testCaseNo,        testClusters,      testCaseName,    testCaseLevel,		args,      
+1, GPON_DBA_Maint_060,  IasGlobal/AsicGponTc, 支持基于Tcont统计DBRu的发送次数,  $chipVersion$execNetWork4$caseLevel2, \
+   
+   -repeatCycTimes 2 \
+   -DBAAsType min-loop-delay  -SendPkNum 10000  -sendPRate $tgDefaultPsendRate \
+   -pLength 1514 -OntId 0 -cmpList {-SN $_gponOltOntSN} \
+   -CmpIndex 1 \
+   -Length 60 \
+   -sendPRate 60 -sendPRate1 20 \
+   -staPRate 60 -staPRate1 20 \
+   -Delay 10 \
+   -StaItem {{PS_TX_PPS PS_RX_PPS PS_TX_STREAM_PACKETS PS_RX_STREAM_PACKETS}} \
+   -CmpList2 "\[expr round(1.0*\$Data(sendPRate)*1000*1000/100/8/(\$Data(Length)+4+12+8)*1000)\]" \
+   -CmpList3 "\[expr round(1.0*\$Data(staPRate)*1000*1000/100/8/(\$Data(Length)+4+12+8)*1000)\]" \
+   -AllowError "\[expr round(0.015*\$Data(CmpList3))\]" \
+   -DBAType 3 -FixBandWidth {} -AbBandWidth 1024 -MaxBandWidth 1024000 \
+   -DBAType0 1 -FixBandWidth0 5120 -AbBandWidth0 {} -MaxBandWidth0 {} \
+   -DBATypeDef $DBATypeDef -FixBandWidthDef $fixBandwidth -AbBandWidthDef {} -MaxBandWidthDef {} \
+   -DBAType0Def $DBAType0Def -FixBandWidth0Def $fixBandwidth0 -AbBandWidth0Def {} -MaxBandWidth0Def {} \
+   -tcontId0 0 -dbaProfileId1 1 -dbaProfileId2 2 -time2 2 -StreamSum1 1 -addr1 0x1408006c -data1 00000000 \
+   -addr2 0x14080048 -data2 00000001 ,
+
+支持基于Tcont统计DBRu的发送次数.txt
+##逻辑编号:GPON_DBA_Maint_060
+逻辑名称:支持基于Tcont统计DBRu的发送次数
+逻辑说明:支持基于Tcont统计DBRu的发送次数
+组网编号: 
+预置条件:
+测试步骤:  
+
+	
+
+010.按用例要求修改DBA模板:
+	IasNewModeOntTcontBind(-TermName $oltTerm -ProfileId $gponLineProfileId -TcontId $gponOltTcontId -DbaProfileId $Data(dbaProfileId1));
+	IasOltTcontModify(-TermName $oltTerm -ProfileId $gponDbaProfileId -Type $Data(DBAType) -Fix $Data(FixBandWidth) -Assure $Data(AbBandWidth) -Max $Data(MaxBandWidth) );
+	IasNewModeOntTcontBind(-TermName $oltTerm -ProfileId $gponLineProfileId -TcontId  $gponOltTcontId -DbaProfileId $gponDbaProfileId);  
+
+020.新增一个dba模板:
+    IasOltTcontAdd (-TermName $oltTerm -ProfileId [expr $gponDbaProfileId+1] -TcontType $tcontType -FixBandwidth $Data(FixBandWidth0) -AssureBandwidth $assureBandwidth -MaxBandwidth $maxBandwidth ) ;	
+
+021.按用例要求修改tcont0绑定的DBA模板:
+	IasNewModeOntTcontBind(-TermName $oltTerm -ProfileId $gponLineProfileId -TcontId  $Data(tcontId0) -DbaProfileId [expr $gponDbaProfileId+1]);  
+
+030.添加ONT(-OntSrvProfileId $gponSrvProfileId):
+   	IasOntAdd(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -Port $gponOltPort -Sn $gponOltOntSN -OntId $Data(OntId) \
+   				-OntWay omci -OntlineProfileId $gponLineProfileId -OntSrvProfileId $gponSrvProfileId);
+
+040.延时20秒:  	
+  	IasCommonDelay(-Time $time); 
+
+050.增加service——port:
+    IasVlanServPortAdd(-TermName $oltTerm -Index $oltSrvIndex -StartVlan $tgLMNetPMainVlan -ServiceType gpon -FrameSlotPort $gponOltFSPort -OntId $Data(OntId) \
+     			-GemPortId $gponOltGemIndex -MultiService user-vlan -UserVlan $oltCVlan -RxCttr $rxCttr -TxCttr $txCttr); 
+
+060.判断ONT的状态:   
+    GponOntCtrolFlagCheck(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -Port $gponOltPort  -OntId $Data(OntId) \
+    				-CmpList {-Controlflag active -Runstate online -Configstate normal});   
+
+070. 单向引流，mac地址学习，下行: 
+	AsicTgSingleStreamSendAndStat( -sendPort $tgLinkMainNetPort -staPort $tgLinkMainUserPort -StatMode port \
+    -Time $Data(time2) -SendMode SINGLE_BURST -BurPacket $Data(SendPkNum) -Speed $MacLearnRate \
+    -StreamSum $Data(StreamSum1) -StreamPara "{-StreamName DnStream -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac}" )  ;
+    
+080. 单向引流，mac地址学习，上行: 
+	AsicTgSingleStreamSendAndStat( -sendPort $tgLinkMainUserPort -staPort $tgLinkMainNetPort -StatMode port \
+    -Time $Data(time2) -SendMode SINGLE_BURST -BurPacket $Data(SendPkNum) -Speed $MacLearnRate \
+    -StreamSum $Data(StreamSum1) -StreamPara "{-StreamName UpStream -Vlan $tgLMUserPMainVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac }" )  ;
+    
+090.用tesgine上行发包,判断是否正常: 
+	AsicTgAppSingleStreamSendAndStaCompare(-sendPort $tgLinkMainUserPort -staPort $tgLinkMainNetPort -StatMode PORT  \
+	-MatchRMode PPS -StaItem "PS_TX_STREAM_PACKETS  PS_RX_STREAM_PACKETS  P_RX_FCS_ERRORS" -StaJudgeExp {[0-9]*\s*[0-9]*\s*[0-9]*}  \
+	-Time $tgSendTime -SendMode SINGLE_BURST -BurPacket $Data(SendPkNum) -AllowError 5 -RateMode Percentage -Speed $Data(sendPRate1) \
+	-Length $Data(pLength) -StreamSum $Data(StreamSum1) -StreamPara "{-StreamName UpStream -Vlan $tgLMUserPMainVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac}" ;	
+
+101.清除dbru的发送次数统计:
+    AsicChipExtPhymw (-TermName $ontTerm -Addr $Data(addr1) -Data $Data(data1));
+    AsicChipExtPhymw (-TermName $ontTerm -Addr $Data(addr2) -Data $Data(data2));
+
+100.tesgine双向持续发包:
+	AsicTgAppDoubleSteramVersusSendNoStop(-sendPort $tgLinkMainNetPort -staPort $tgLinkMainUserPort\
+	-RateMode Percentage -Speed $Data(sendPRate) -StaPSpeed  $Data(staPRate) -StreamSum 2 -StatMode port -Time $Data(time2) \
+	-StreamPara "{-StreamName DnStream -Vlan $tgLMNetPMainVlan -DMac $tgLMUserPSmac -SMac $tgLMNetPSmac -Length $Data(Length)} \
+	{-StreamName UpStream -Vlan $tgLMUserPMainVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac -Length $Data(Length)} ");
+
+110.查询dbaru的发送次数统计:
+    AsicChipExtPhymwGet (-TermName $ontTerm -Addr $Data(addr1) -Cmplist "-Addr $Data(addr1) -Data0 $Data(data1)")=Err020 ;
+
+120.停止tesgine双向持续发包:
+	AsicTgAppDoubleSteramVersusSendStopAndResume(-sendPort $tgLinkMainNetPort -staPort $tgLinkMainUserPort\
+	-RateMode Percentage -Speed $Data(sendPRate) -StreamSum 2 -StatMode port -Time $Data(time2) \
+	-StreamPara "{-StreamName DnStream -Vlan $tgLMNetPMainVlan -DMac $tgLMUserPSmac -SMac $tgLMNetPSmac -Length $Data(Length)} \
+	{-StreamName UpStream -Vlan $tgLMUserPMainVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac -Length $Data(Length)} ");
+
+资源释放：
+
+010.延迟一段时间:
+    IasCommonDelay(-Time $Data(time2));     
+
+020.停止tesgine双向持续发包:
+		AsicTgAppDoubleSteramVersusSendStopAndResume(-sendPort $tgLinkMainNetPort -staPort $tgLinkMainUserPort\
+	-RateMode Percentage -Speed $Data(sendPRate) -StreamSum 2 -StatMode port -Time $Data(time2) \
+	-StreamPara "{-StreamName DnStream -Vlan $tgLMNetPMainVlan -DMac $tgLMUserPSmac -SMac $tgLMNetPSmac -Length $Data(Length)} \
+	{-StreamName UpStream -Vlan $tgLMUserPMainVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac -Length $Data(Length)} ");
+ 
+030.删除业务流:
+    IasVlanServPortDelete(-TermName $oltTerm -DeleteType vlan -StartVlan $tgLMNetPMainVlan -ServiceType gpon  -FrameSlotPort $gponOltFSPort);
+
+040.删除端口下的测试ONT: 
+    IasOntDel(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -Port $gponOltPort -OntId $Data(OntId));
+	
+050.恢复默认的DBA模板:
+	IasNewModeOntTcontBind(-TermName $oltTerm -ProfileId $gponLineProfileId -TcontId $gponOltTcontId -DbaProfileId $Data(dbaProfileId1));
+	IasOltTcontModify(-TermName $oltTerm -ProfileId $gponDbaProfileId -Type $Data(DBATypeDef) -Fix $Data(FixBandWidthDef) -Assure $Data(AbBandWidthDef) -Max $Data(MaxBandWidthDef));
+	IasNewModeOntTcontBind(-TermName $oltTerm -ProfileId $gponLineProfileId -TcontId  $gponOltTcontId -DbaProfileId $gponDbaProfileId);  
+
+060.恢复默认tcont0绑定的DBA模板:
+	IasNewModeOntTcontBind(-TermName $oltTerm -ProfileId $gponLineProfileId -TcontId  $Data(tcontId0) -DbaProfileId $gponDbaProfileId0); 
+	
+070.删除dba模板:
+	IasOltTcontDel (-TermName $oltTerm -ProfileId [expr $gponDbaProfileId+1]) ; 
