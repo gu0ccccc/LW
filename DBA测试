@@ -1,4 +1,4 @@
-ONU支持TCONT规格数目验证OMCI共享TCONT
+ONU支持TCONT规格数目验证OMCI共享TCONT.app.tcl
 namespace eval TestApp {
 
     proc TestLogic { args } {
@@ -133,3 +133,138 @@ namespace eval TestApp {
 ::TestApp::Main
 #--<end>--
 
+ONU支持TCONT规格数目验证OMCI共享TCONT.cfg
+[TestLogicInfo]
+testClusterNames= IasGlobal/AsicGponTc
+productLib=
+toolLib=
+
+# 在TERM1控制台窗口上的建立/恢复配置命令/脚本 
+TERM1,SetupCommands=
+TERM1,RestoreCommands=
+TERM1,SetupScripts=
+ ###calculate-period  max-bandwidth-usage,min-loop-delay, manual   single-frame   calculate-period
+[TestCaseData]
+FIELDS,      testCaseNo,        testClusters,      testCaseName,    testCaseLevel,		args,      
+1, GPON_DBA_Perf_010,  IasGlobal/AsicGponTc, ONU支持T-CONT规格数目验证—OMCI共享T-CONT,  $chipVersion$execNetWork4$caseLevel2, \
+   -num 8 -DBAProfileId1 131 -MaxBandwidth 1024 \
+   -SendPkNum 1000  -sendPRate 100 -pLength 1996 \
+   -exList1 710 -TolList1 20 -tcontId 0 -time2 2 \
+   -Speed 100 -time10 10 -StreamSum1 10 -gponLineProfileId1 112 ,
+   
+ONU支持TCONT规格数目验证OMCI共享TCONT.txt
+逻辑编号: GPON_DBA_Perf_010
+逻辑名称: ONU支持T-CONT规格数目验证—OMCI共享T-CONT
+逻辑说明: ONU支持T-CONT规格数目验证—OMCI共享T-CONT
+组网编号: 
+预置条件:
+测试步骤: 
+	
+
+010.增加线路模板:
+	IasOntLineProfileAdd(-TermName $oltTerm  -OntLineProfileType gpon  -ProfileId $Data(gponLineProfileId1)) ;
+
+020.配置业务模板中UNI端口的VLAN:
+    IasNewModeOntPortSet (-TermName $oltTerm -XponMode gpon -ProfileId $gponSrvProfileId  -EthPort $OntEthPortNum -PotsPort $OntPotsPortNum);
+    IasNewModeOntPortMultiVlanAdd (-TermName $oltTerm -ProfileId $gponSrvProfileId -StartVlan $oltCVlan -Num $Data(num));
+
+030.添加DBA模板:	
+    IasOltTcontAdd(-TermName $oltTerm -ProfileId $Data(DBAProfileId1) -TcontType type4 -MaxBandwidth $Data(MaxBandwidth));
+    
+040.配置多个TCONT绑定模板:
+    IasNewModeOntTcontBind (-TermName $oltTerm  -ProfileId $Data(gponLineProfileId1)  -TcontId $Data(tcontId) -DbaProfileId 2);    
+    IasNewModeOntMultiTcontBind (-TermName $oltTerm  -ProfileId $Data(gponLineProfileId1)  -TcontId $gponOltTcontId -DbaProfileId $Data(DBAProfileId1) -Num [expr $Data(num)-1]); 
+
+050.配置GEM绑定TCONT:
+	IasNewModeOntMultiGemAdd (-TermName $oltTerm  -ProfileId $Data(gponLineProfileId1)  -GemIndex $gponOltGemIndex -TcontId $Data(tcontId) -Num $Data(num) -TcontNum $Data(num) -Encrypt off);     
+         
+060.多个Gemport业务映射多个Vlan:
+    IasMultiOntGemMappingAdd(-TermName $oltTerm  -ProfileId $Data(gponLineProfileId1) -GemIndex $gponOltGemIndex -MappingIndex $gponOltMapIndex -CVlanId  $oltCvlanId -Num $Data(num) -GemPortNum $Data(num) );
+  		     
+070.添加ONT:
+   	IasOntAdd(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -Port $gponOltPort -Sn $ont1SN -OntId $gponOltOntId -OntWay omci -OntlineProfileId $Data(gponLineProfileId1) -OntSrvProfileId $gponSrvProfileId); 
+  	IasCommonDelay(-Time $time);   
+
+080.增加多个service-port:     
+    IasVlanMultiServPortAdd(-TermName $oltTerm -ServicePortIndex $oltSrvIndex -TgLMNetPMainVlan $oltSvlanId -GponOltFSPort $gponOltFSPort -GponOltOntId $gponOltOntId \
+ 	-GponOltGemIndex $gponOltGemIndex -OltCVlan $oltCvlanId -Num $Data(num) -GemPortNum $Data(num) -OltTrafficIndex $oltTrafficIndex  );
+
+090.判断ONT的状态:
+    GponOntCtrolFlagCheck(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -Port $gponOltPort -OntId $gponOltOntId -CmpList {-Controlflag active -Runstate online -Configstate normal});   
+
+100. 单向引流，mac地址学习，下行: 
+    AsicTgSingleStreamSendAndStat(-sendPort $tgLinkMainNetPort -staPort $tgLinkMainUserPort -StatMode PORT  \
+	-Time $Data(time2) -Speed $Data(sendPRate) -StreamSum $Data(num) \
+	-StreamPara "{-StreamName DnStream -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac } \
+	{-StreamName DnStream1 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac  -DMac $tgLMUserPSmac  } \
+	{-StreamName DnStream2 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac   } \
+	{-StreamName DnStream3 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac  } \
+	{-StreamName DnStream4 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac  } \
+	{-StreamName DnStream5 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac  } \
+	{-StreamName DnStream6 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac  } \
+	{-StreamName DnStream7 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac  } ") ;
+
+110. 单向引流，mac地址学习，上行: 
+    AsicTgSingleStreamSendAndStat(-sendPort $tgLinkMainUserPort -staPort $tgLinkMainNetPort -StatMode PORT  \
+	-Time $Data(time2) -Speed $Data(sendPRate) -StreamSum $Data(num) \
+	-StreamPara "{-StreamName UpStream -Vlan $oltCVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream1 -Vlan [expr $oltCVlan+1] -SMac $tgLMUserPSmac   -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream2 -Vlan [expr $oltCVlan+2] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream3 -Vlan [expr $oltCVlan+3] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream4 -Vlan [expr $oltCVlan+4] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream5 -Vlan [expr $oltCVlan+5] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream6 -Vlan [expr $oltCVlan+6] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac  } \
+	{-StreamName UpStream7 -Vlan [expr $oltCVlan+7] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac  } ") ;
+
+120.用tesgine上行发包-1024k: 
+	AsicTgSingleStreamSendAndCheckRateMulti(-TsuID $tsuID -sendPort $tgLinkMainUserPort -StatPort $tgLinkMainNetPort -RateMode Percentage \
+	-Speed $Data(sendPRate) -StatMode STREAM -SendTime $Data(time10) -MatchRMode KBPS -ExpectSpeed $Data(exList1) -Tol $Data(TolList1) \
+	-StreamSum $Data(num) \
+	-StreamPara "{-StreamName UpStream -Length $Data(pLength) -Vlan $oltCVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream1 -Length $Data(pLength) -Vlan [expr $oltCVlan+1] -SMac $tgLMUserPSmac   -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream2 -Length $Data(pLength) -Vlan [expr $oltCVlan+2] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream3 -Length $Data(pLength) -Vlan [expr $oltCVlan+3] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream4 -Length $Data(pLength) -Vlan [expr $oltCVlan+4] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream5 -Length $Data(pLength) -Vlan [expr $oltCVlan+5] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream6 -Length $Data(pLength) -Vlan [expr $oltCVlan+6] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac  } \
+	{-StreamName UpStream7 -Length $Data(pLength) -Vlan [expr $oltCVlan+7] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac  } ") ;
+	
+130.上行发送背景流:
+	AsicTgAppSingleStreamSendNoStop (-sendPort $tgLinkMainUserPort -staPort $tgLinkMainNetPort -StatMode port -Speed $Data(Speed) -StreamSum $Data(num) \
+	-StreamPara "{-StreamName UpStream -Length $Data(pLength) -Vlan $oltCVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream1 -Length $Data(pLength) -Vlan [expr $oltCVlan+1] -SMac $tgLMUserPSmac   -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream2 -Length $Data(pLength) -Vlan [expr $oltCVlan+2] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream3 -Length $Data(pLength) -Vlan [expr $oltCVlan+3] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream4 -Length $Data(pLength) -Vlan [expr $oltCVlan+4] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream5 -Length $Data(pLength) -Vlan [expr $oltCVlan+5] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream6 -Length $Data(pLength) -Vlan [expr $oltCVlan+6] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac  } \
+	{-StreamName UpStream7 -Length $Data(pLength) -Vlan [expr $oltCVlan+7] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac  } ") ;
+	    
+140.对ont进行omci配置:
+	IasNewModeOntGemMappingAdd (-TermName $oltTerm -ProfileId $Data(gponLineProfileId1) -GemIndex $gponOltGemIndex -MappingIndex [expr $gponOltMapIndex+1] -CVlanId [expr $oltCvlanId+100]);
+
+150.olt上查询ont没有配置恢复失败:
+	GponOntCtrolFlagCheck(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -Port $gponOltPort -OntId $gponOltOntId -CmpList {-Runstate online -Configstate normal});
+ 
+ 
+ 
+资源释放:
+
+200.延迟一段时间:
+    IasCommonDelay(-Time $Data(time2));
+
+210.停止发包:
+	AsicTgAppSingleStreamStopAndResume(-sendPort $tgLinkMainUserPort -staPort $tgLinkMainNetPort -StatMode port -StreamSum $Data(num));
+
+230.删除业务流:
+    IasVlanServPortDelete(-TermName $oltTerm -DeleteType vlan -StartVlan $oltSvlanId -ServiceType gpon -FrameSlotPort $gponOltFSPort);
+
+240.删除端口下的所有ONT: 
+    IasOntDel(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -Port $gponOltPort);
+ 
+250.删除线路模板: 
+    IasOntLineProfileDelete (-TermName $oltTerm  -ProfileId $Data(gponLineProfileId1));
+
+260.删除dba模板:
+    IasOltTcontDel(-TermName $oltTerm -ProfileId $Data(DBAProfileId1));
+                                
