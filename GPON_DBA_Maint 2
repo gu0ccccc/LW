@@ -1,0 +1,196 @@
+查询指定allocid的Bwmap.app.tcl
+
+namespace eval TestApp {
+ 
+
+    proc TestLogic { args } {
+
+        #===================================================================================
+        #  系统变量，测试人员不可更改
+        #===================================================================================
+        set strCmd "===================Begin:$aTestCaseData(testCaseNo)============\033\033"
+        ::Common::CSend $term1 -r strRet1 -s [list "#"] -t 10000 "$strCmd"
+        # 取得当前过程名
+        set sProcName [::TestLib::GetProcedureName -complete]
+        #获取测试数据，重新封装到数组Data里去
+        CommonArgsToArray $aTestCaseData(args) Data
+		
+	 	#当前目录下执行的测试逻辑文件
+        set strFileName [string map {app.tcl txt} $::TestLib::naLibData(testLogicFileName)]
+      	#使用parseLogicFile执行测试逻辑
+        set res [parseLogicFile $strFileName]
+        ::TestLib::ShowTraceMessage -level 10 "result == $res" 
+        #返回执行结果
+        return $res
+    }
+    #===================================================================================
+    # 系统函数调用，测试人员不可更改
+    #   测试逻辑执行入口
+    #===================================================================================
+    #!!================================================================
+    #过 程 名：    Main
+    #程 序 包：
+    #功能类别：
+    #过程描述：    （包含范例）
+    #   载入package TestLib
+    #   执行测试逻辑
+    #参数说明：
+    #返 回 值：
+    #   0:  执行成功
+    #   1:  执行失败
+    #函数作者：    Peixing.Lin.(14507)
+    #生成日期：    2003-03-04 20:04:06
+    #修改纪录：
+    #!!================================================================
+    proc Main {} {
+        global auto_path
+        
+        # 默认执行成功
+        set result 0
+        if {([lsearch -exact [namespace children ::] ::TestLib] != -1)} {
+            # 如果TestLib已经载入，则退出；
+            return $result
+        }
+        set sTestLibDir             "Lib/CommonLib"
+        set sScriptsDir             "Scripts"
+        set sTestLogicFilePathName  ""
+        set sAutoTestPath           ""
+        set sTestLibPath            ""
+        # 得到带绝对路径的测试逻辑文件名
+        set sTestLogicFilePathName  [info script]
+        if { $sTestLogicFilePathName == "" } {
+            set sTestLogicFilePathName  [tgetcurfilepath]
+        }
+
+        set lPath   [file split $sTestLogicFilePathName]
+        # 得到Scripts目录名在测试逻辑路径列表中的索引
+        set iIdx -1
+        for { set i 0 } { $i < [llength $lPath] } { incr i} {
+            # 不区分大小写
+            if { [string equal -nocase $sScriptsDir [lindex $lPath $i]] != 1} {
+                continue
+            }
+            set iIdx $i
+            break
+        }
+        
+        #set iIdx    [lsearch -exact $lPath $sScriptsDir]
+        if {  -1 == $iIdx } {
+            puts "TestApp-测试逻辑脚本没有按照目录结构的定义放在规定的位置Scripts目录下!"
+            set result 1
+            return $result
+        } else {
+            #取得自动化工作目录
+            set sAutoTestPath [lindex $lPath 0]
+            for {set i 1} {$i < $iIdx} {incr i} {
+                set sAutoTestPath [file join $sAutoTestPath [lindex $lPath $i]]
+            }
+        }
+
+        # 得到package TestLib函数库所在的路径
+        set sTestLibPath [file join $sAutoTestPath $sTestLibDir]
+
+        # 将自动化体系的函数库的路径加入tcl系统函数库路径变量中
+        lappend auto_path $sTestLibPath
+        # 如果没有包索引文件，则创建
+        if { ![file exists [file join $sTestLibPath "pkgIndex.tcl"]] } {
+            if {[catch [list pkg_mkIndex $sTestLibPath *.tcl] errMsg]} {
+                puts "TestApp: 创建运行引索引失败！"
+                puts "TestApp: 失败信息：$errMsg"
+                set result 1
+                return $result
+            }
+        }
+        # 载入package TestLib
+        set status [ catch { package require TestLib } pkgVersion ]
+        if { $status != 0 } {
+            puts "TestApp: 无法找到TestLib的路径；\n$::auto_path\n错误信息: $pkgVersion\n"
+            set result 1
+            return $result
+        } else {
+            puts "TestApp: 载入测试包TestLib,版本号：$pkgVersion"
+        }
+        # 调用支撑代码接口，执行测试逻辑
+        set result [::TestLib::RunEngine    ::TestApp::TestLogic     $sTestLogicFilePathName]
+
+        return $result
+    }
+}
+
+# 测试逻辑执行入口点
+::TestApp::Main
+#--<end>--
+
+
+查询指定allocid的Bwmap.cfg
+#[TestLogicInfo]
+testClusterNames= IasGlobal/AsicXponDBATc
+productLib=
+toolLib=
+
+# 在TERM1控制台窗口上的建立/恢复配置命令/脚本 
+TERM1,SetupCommands=
+TERM1,RestoreCommands=
+TERM1,SetupScripts=
+
+[TestCaseData]
+FIELDS,      testCaseNo,        testClusters,      testCaseName,    testCaseLevel,		args,      
+1, GPON_DBA_Maint_010,  IasGlobal/AsicXponDBATc, 查询指定allocid的Bwmap,  $chipVersion$execNetWork4$caseLevel1, \
+	-dbaProfileId 311 -dbaProfileId1 312 -gponfixBandwidth 10240 -gponfixBandwidth1 102400 \
+	-dbaProfileId2 313 -gponfixBandwidth2 1024000 -TcontId 0 -TcontId1 3 -TcontId2 7 \
+	-CmpList {-AllocID \[expr \$Data(TcontId) * 256 + $ont1Id\] -Bwmap 159} \
+	-CmpList1 {-AllocID \[expr \$Data(TcontId1) * 256 + $ont1Id\] -Bwmap 1599} \
+	-CmpList2 {-AllocID \[expr \$Data(TcontId2) * 256 + $ont1Id\] -Bwmap 15999} \
+	-time2 2 -assureBandwidth 0 -maxBandwidth 0 -index 256 ,
+  
+查询指定allocid的Bwmap.txt
+逻辑编号: GPON_DBA_Maint_010
+逻辑名称: 查询指定allocid的Bwmap
+逻辑说明: 查询指定allocid的Bwmap 
+组网编号:
+预置条件:
+测试步骤:    
+
+
+010.添加DBA模板:
+	IasOltTcontAdd (-TermName $term1 -ProfileId $Data(dbaProfileId) -TcontType type1 -FixBandwidth $Data(gponfixBandwidth) -AssureBandwidth $Data(assureBandwidth) -MaxBandwidth $Data(maxBandwidth)) ;
+	IasOltTcontAdd (-TermName $term1 -ProfileId $Data(dbaProfileId1) -TcontType type1 -FixBandwidth $Data(gponfixBandwidth1) -AssureBandwidth $Data(assureBandwidth) -MaxBandwidth $Data(maxBandwidth)) ;
+	IasOltTcontAdd (-TermName $term1 -ProfileId $Data(dbaProfileId2) -TcontType type1 -FixBandwidth $Data(gponfixBandwidth2) -AssureBandwidth $Data(assureBandwidth) -MaxBandwidth $Data(maxBandwidth)) ;
+
+020.增加线路模板:
+	IasOntLineProfileAdd (-TermName $term1  -OntLineProfileType gpon  -ProfileId $ontLineProfileId) ;
+	
+030.配置TCONT绑定模板:
+	IasNewModeOntTcontBind (-TermName $term1  -ProfileId $ontLineProfileId  -TcontId $Data(TcontId)  -DbaProfileId $Data(dbaProfileId) );
+	IasNewModeOntTcontBind (-TermName $term1  -ProfileId $ontLineProfileId  -TcontId $Data(TcontId1)  -DbaProfileId $Data(dbaProfileId1) );
+	IasNewModeOntTcontBind (-TermName $term1  -ProfileId $ontLineProfileId  -TcontId $Data(TcontId2)  -DbaProfileId $Data(dbaProfileId2) );
+    
+050.添加ONT:
+	IasOntAdd (-TermName $term1 -FrameSlot $gponSlot -Port $gponOltPort -Sn $ont1SN -OntId $ont1Id -OntWay omci -OntlineProfileId $ontLineProfileId -OntSrvProfileId $ontSrvProfileId ) ;
+	IasCommonDelay (-Time $time) ;
+
+060.判断ONT的状态:   
+    GponOntCtrolFlagCheck(-TermName $term1 -FrameSlot $gponSlot -Port $gponOltPort -OntId $ont1Id -CmpList {-Controlflag active -Runstate online -Configstate normal});
+	
+070.查询指定allocid的bwmap:
+	AsicGponBwmapCalNew (-TermName $term3  -Index $Data(index) -CmpList $Data(CmpList));
+	AsicGponBwmapCalNew (-TermName $term3  -Index $Data(index) -CmpList $Data(CmpList1));
+	AsicGponBwmapCalNew (-TermName $term3  -Index $Data(index) -CmpList $Data(CmpList2));
+	
+
+资源释放：
+ 
+010 延迟一段时间:
+    IasCommonDelay( -Time $Data(time2));
+	 
+020.删除所有ONT: 
+	IasOntDel (-TermName $term1 -FrameSlot $gponSlot -Port $gponOltPort ) ;
+
+030.删除线路模板: 
+	IasOntLineProfileDelete (-TermName $term1  -ProfileId $ontLineProfileId );
+	 
+040.删除dba模板: 
+	IasOltTcontDel (-TermName $term1 -ProfileId $Data(dbaProfileId)) ; 
+	IasOltTcontDel (-TermName $term1 -ProfileId $Data(dbaProfileId1)) ; 
+	IasOltTcontDel (-TermName $term1 -ProfileId $Data(dbaProfileId2)) ; 
+		   
