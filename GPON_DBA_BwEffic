@@ -1,0 +1,236 @@
+单tcont type1带宽利用率验证（100M~1000M）.app.tcl
+
+namespace eval TestApp {
+ 
+
+    proc TestLogic { args } {
+
+        #===================================================================================
+        #  系统变量，测试人员不可更改
+        #===================================================================================
+        set strCmd "===================Begin:$aTestCaseData(testCaseNo)============\033\033"
+        ::Common::CSend $term1 -r strRet1 -s [list "#"] -t 10000 "$strCmd"
+        # 取得当前过程名
+        set sProcName [::TestLib::GetProcedureName -complete]
+        #获取测试数据，重新封装到数组Data里去
+        CommonArgsToArray $aTestCaseData(args) Data
+		
+	 	#当前目录下执行的测试逻辑文件
+        set strFileName [string map {app.tcl txt} $::TestLib::naLibData(testLogicFileName)]
+      	#使用parseLogicFile执行测试逻辑
+        set res [parseLogicFile $strFileName]
+        ::TestLib::ShowTraceMessage -level 10 "result == $res" 
+        #返回执行结果
+        return $res
+    }
+    #===================================================================================
+    # 系统函数调用，测试人员不可更改
+    #   测试逻辑执行入口
+    #===================================================================================
+    #!!================================================================
+    #过 程 名：    Main
+    #程 序 包：
+    #功能类别：
+    #过程描述：    （包含范例）
+    #   载入package TestLib
+    #   执行测试逻辑
+    #参数说明：
+    #返 回 值：
+    #   0:  执行成功
+    #   1:  执行失败
+    #函数作者：    Peixing.Lin.(14507)
+    #生成日期：    2003-03-04 20:04:06
+    #修改纪录：
+    #!!================================================================
+    proc Main {} {
+        global auto_path
+        
+        # 默认执行成功
+        set result 0
+        if {([lsearch -exact [namespace children ::] ::TestLib] != -1)} {
+            # 如果TestLib已经载入，则退出；
+            return $result
+        }
+        set sTestLibDir             "Lib/CommonLib"
+        set sScriptsDir             "Scripts"
+        set sTestLogicFilePathName  ""
+        set sAutoTestPath           ""
+        set sTestLibPath            ""
+        # 得到带绝对路径的测试逻辑文件名
+        set sTestLogicFilePathName  [info script]
+        if { $sTestLogicFilePathName == "" } {
+            set sTestLogicFilePathName  [tgetcurfilepath]
+        }
+
+        set lPath   [file split $sTestLogicFilePathName]
+        # 得到Scripts目录名在测试逻辑路径列表中的索引
+        set iIdx -1
+        for { set i 0 } { $i < [llength $lPath] } { incr i} {
+            # 不区分大小写
+            if { [string equal -nocase $sScriptsDir [lindex $lPath $i]] != 1} {
+                continue
+            }
+            set iIdx $i
+            break
+        }
+        
+        #set iIdx    [lsearch -exact $lPath $sScriptsDir]
+        if {  -1 == $iIdx } {
+            puts "TestApp-测试逻辑脚本没有按照目录结构的定义放在规定的位置Scripts目录下!"
+            set result 1
+            return $result
+        } else {
+            #取得自动化工作目录
+            set sAutoTestPath [lindex $lPath 0]
+            for {set i 1} {$i < $iIdx} {incr i} {
+                set sAutoTestPath [file join $sAutoTestPath [lindex $lPath $i]]
+            }
+        }
+
+        # 得到package TestLib函数库所在的路径
+        set sTestLibPath [file join $sAutoTestPath $sTestLibDir]
+
+        # 将自动化体系的函数库的路径加入tcl系统函数库路径变量中
+        lappend auto_path $sTestLibPath
+        # 如果没有包索引文件，则创建
+        if { ![file exists [file join $sTestLibPath "pkgIndex.tcl"]] } {
+            if {[catch [list pkg_mkIndex $sTestLibPath *.tcl] errMsg]} {
+                puts "TestApp: 创建运行引索引失败！"
+                puts "TestApp: 失败信息：$errMsg"
+                set result 1
+                return $result
+            }
+        }
+        # 载入package TestLib
+        set status [ catch { package require TestLib } pkgVersion ]
+        if { $status != 0 } {
+            puts "TestApp: 无法找到TestLib的路径；\n$::auto_path\n错误信息: $pkgVersion\n"
+            set result 1
+            return $result
+        } else {
+            puts "TestApp: 载入测试包TestLib,版本号：$pkgVersion"
+        }
+        # 调用支撑代码接口，执行测试逻辑
+        set result [::TestLib::RunEngine    ::TestApp::TestLogic     $sTestLogicFilePathName]
+
+        return $result
+    }
+}
+
+# 测试逻辑执行入口点
+::TestApp::Main
+#--<end>--
+
+
+单tcont type1带宽利用率验证（100M~1000M）.cfg
+#[TestLogicInfo]
+testClusterNames= IasGlobal/AsicXponDBATc
+productLib=
+toolLib=
+
+# 在TERM1控制台窗口上的建立/恢复配置命令/脚本 
+TERM1,SetupCommands=
+TERM1,RestoreCommands=
+TERM1,SetupScripts=
+# -DBAPeriod 1 -DBAType gpon -DBAAsType min-loop-delay -Mode single-frame
+[TestCaseData]
+FIELDS,      testCaseNo,        testClusters,      testCaseName,    testCaseLevel,		args,      
+1, GPON_DBA_BwEffic_040,  IasGlobal/AsicXponDBATc, 单tcont带宽利用率验证（100M~1000M）,  $chipVersion$execNetWork4$caseLevel1, \
+   -CVlanId $oltCvlanId0  -TgSmac  00-00-00-00-00-55  -TgDmac  00-00-00-00-00-66 -OltSvlanId $oltSvlanId0  -tagMode  trunk -Length 76  \
+   -asicCarAllowErr "\[expr \$Data(Error) / 2.0 \]" -Error "\[expr \$Data(RightValue) - \$Data(LeftValue) \]" \
+   -AllValue  "\[expr \$Data(RightValue) + \$Data(LeftValue) \]"  -Speed 100 -TcontId 1  \
+   -LeftValue 0 -RightValue 204800  -gponfixBandwidth 204800   -ExceptRec 204800 \
+   -defaultval 0 -time5 5 -StreamSum1 1 , 
+
+2, GPON_DBA_BwEffic_040%2, IasGlobal/AsicXponDBATc,  单tcont带宽利用率验证（100M~1000M）, $chipVersion$execNetWork4$caseLevel1, \
+   -CVlanId $oltCvlanId0  -TgSmac  00-00-00-00-00-55  -TgDmac  00-00-00-00-00-66 -OltSvlanId $oltSvlanId0  -tagMode  trunk -Length 76  \
+   -asicCarAllowErr "\[expr \$Data(Error) / 2.0 \]" -Error "\[expr \$Data(RightValue) - \$Data(LeftValue) \]" \
+   -AllValue  "\[expr \$Data(RightValue) + \$Data(LeftValue) \]"  -Speed 100 -TcontId 1  \
+   -LeftValue 0 -RightValue 602000  -gponfixBandwidth 512000   -ExceptRec 602000 \
+   -defaultval 0 -time5 5 -StreamSum1 1 ,
+   
+3, GPON_DBA_BwEffic_040%3, IasGlobal/AsicXponDBATc,  单tcont带宽利用率验证（100M~1000M）, $chipVersion$execNetWork4$caseLevel1, \
+   -CVlanId $oltCvlanId0  -TgSmac  00-00-00-00-00-55  -TgDmac  00-00-00-00-00-66 -OltSvlanId $oltSvlanId0  -tagMode  trunk -Length 76  \
+   -asicCarAllowErr "\[expr \$Data(Error) / 2.0 \]" -Error "\[expr \$Data(RightValue) - \$Data(LeftValue) \]" \
+   -AllValue  "\[expr \$Data(RightValue) + \$Data(LeftValue) \]"  -Speed 100 -TcontId 1  \
+   -LeftValue 0 -RightValue 1204400  -gponfixBandwidth 1024000   -ExceptRec 1204400 \
+   -defaultval 0 -time5 5 -StreamSum1 1 ,
+
+单tcont type1带宽利用率验证（100M~1000M）.txt
+逻辑编号:GPON_DBA_BwEffic_040
+逻辑名称:单tcont type1带宽利用率验证（100M~1000M）
+逻辑说明:单tcont type1带宽利用率验证（100M~1000M）
+组网编号:
+预置条件:
+测试步骤:    
+
+	
+010.添加DBA模板:
+	    IasOltTcontAdd (-TermName $term1 -ProfileId $dbaProfileId -TcontType $gpontcontType -FixBandwidth $Data(gponfixBandwidth) -AssureBandwidth $gponassureBandwidth -MaxBandwidth $gponmaxBandwidth ) ;
+                                      
+030.配置ONT属性:
+	    IasNewModeOntPortSet (-TermName $term1 -XponMode gpon -ProfileId $ontSrvProfileId  -EthPort $OntEthPortNum -PotsPort $OntPotsPortNum );
+		
+040.增加线路模板:
+		IasOntLineProfileAdd (-TermName $term1  -OntLineProfileType gpon  -ProfileId $ontLineProfileId) ;
+	
+050.配置TCONT绑定模板:
+		IasNewModeOntTcontBind (-TermName $term1  -ProfileId $ontLineProfileId  -TcontId $Data(TcontId)  -DbaProfileId $dbaProfileId );
+	
+060.修改QOS MODE:
+		IasNewModeOntQosModeSet (-TermName $term1 -ProfileId $ontLineProfileId -QosMode priority-queue ) ;
+	
+070.配置GEM绑定TCONT:
+		IasNewModeOntGemAdd (-TermName $term1  -ProfileId $ontLineProfileId  -GemIndex $gemIndex0  -ServiceType eth  -TcontId $Data(TcontId) -encrypt off ) ;     
+	
+080.配置业务映射关系:
+		IasNewModeOntGemMappingAdd (-TermName $term1  -ProfileId $ontLineProfileId  -GemIndex $gemIndex0 -MappingIndex $mappingIndex0  -CVlanId $oltCvlanId0 ) ;
+	    
+110.添加VLAN:  
+	    IasVlanAdd (-TermName $term1 -VlanList $oltSvlanId0 -VlanType smart ) ; 
+	
+120.端口加入VLAN:
+	 	IasVlanPortAdd (-TermName $term1 -VlanList $oltSvlanId0 -FrameSlot $giuSlot -PortList $giuPort1 );
+	
+130.添加ONT:
+		IasOntAdd (-TermName $term1 -FrameSlot $gponSlot -Port $gponOltPort -Sn $ont1SN -OntId $ont1Id -OntWay omci -OntlineProfileId $ontLineProfileId -OntSrvProfileId $ontSrvProfileId ) ;
+		AsicGmacOntInfoDisplay (-TermName $term1 -FrameSlot $gponSlot -XponMode gpon -PortId $gponOltPort \
+	   -OntId all -CmpList "-OntId $ont1Id -ControlFlag active -RunStat online -ConfigStat normal");
+
+140.建立serviceport: 
+		IasVlanServPortAdd (-TermName $term1 -StartVlan $oltSvlanId0 -Index $oltSrvIndex0 -ServiceType gpon -FrameSlotPort $gponSlotPort -OntId $ont1Id -GemPortId $gemIndex0 \
+		    -MultiService  user-vlan -UserVlan $oltCvlanId0 -RxCttr $oltTrafficIndex  -TxCttr $oltTrafficIndex ) ; 
+
+150.单向引流，mac地址学习，下行: 
+	AsicTgSingleStreamSendAndStat(-sendPort $tgLinkMainNetPort -staPort $tgLinkMainUserPort -StatMode port \
+		-Time $sendTime -SendMode SINGLE_BURST -BurPacket $packetNum -Speed $sendPRate \
+		-StreamSum $Data(StreamSum1) -StreamPara "{-StreamName Down -Vlan $Data(OltSvlanId) -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac }" ) ;
+
+160.上行速率校验:
+	AsicTgAppSingleStreamSendAndRateGetForFilter (-TsuID $tsuId -sendPort $tgLinkMainUserPort -staPort $tgLinkMainNetPort -StatMode Kbps \
+		-Time $Data(time5) -SendMode CONTINUE -RateMode Percentage -Speed $Data(Speed) -MatchRMode KBPS -ExpectRec $Data(ExceptRec) \
+		 -AllowError $Data(asicCarAllowErr) \
+		-StreamSum $Data(StreamSum1) -StreamPara "{-StreamName Up -Vlan $Data(CVlanId) -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac -Length $Data(Length) }") ;
+ 
+资源释放：
+ 
+010 延迟一段时间:
+    IasCommonDelay( -Time $Data(time5));
+
+020.删除业务流:
+		IasVlanServPortDelete (-TermName $term1 -DeleteType INDEX -Index $oltSrvIndex0 ) ;
+		 
+030.删除所有ONT: 
+	    IasOntDel (-TermName $term1 -FrameSlot $gponSlot -Port $gponOltPort ) ;
+		
+040.从vlan中删除上行口:
+	    IasVlanPortDelete (-TermName $term1 -VlanList $oltSvlanId0 -FrameSlot $giuSlot -PortList $giuPort1 );
+	
+050.删除vlan:
+		IasVlanDelete (-TermName $term1 -VlanList $oltSvlanId0 );  
+
+060.删除线路模板: 
+	    IasOntLineProfileDelete (-TermName $term1  -ProfileId $ontLineProfileId );
+	 
+070.删除dba模板: 
+		IasOltTcontDel (-TermName $term1 -ProfileId $dbaProfileId ) ; 
