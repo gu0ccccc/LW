@@ -1,0 +1,312 @@
+满规格TCONTfix类型小带宽利用率测试.app.tcl
+
+namespace eval TestApp {
+
+    proc TestLogic { args } {
+		
+        
+        # 环境信息清理动作
+#        AsicEnvironmentInfoInitialization
+        
+        #===================================================================================
+        #  系统变量，测试人员不可更改
+        #===================================================================================
+        # 取得当前过程名
+        set sProcName [::TestLib::GetProcedureName -complete]
+        # 向窗口打印提示信息
+        set strCmd "========Begin:$aTestCaseData(testCaseNo)=========\033\033"
+		::Common::CSend $term1 -r strRet -s [list "#"] -t 10000 "$strCmd"
+				
+		#获取测试数据，重新封装到数组Data里去
+        CommonArgsToArray $aTestCaseData(args) Data
+        #当前目录下执行的测试逻辑文件
+        set strFileName [string map {app.tcl txt} $::TestLib::naLibData(testLogicFileName)]
+      	#使用parseLogicFile执行测试逻辑
+        set res [parseLogicFile $strFileName]
+	
+	    #　收集环境信息
+#		AsicEnvironmentInfoCollect $res	
+	
+        #显示执行结果
+        ShowTraceMessage -level 10 -msg "result = $res"
+        #返回执行结果
+        return $res
+        
+    }
+    #===================================================================================
+    # 系统函数调用，测试人员不可更改
+    #   测试逻辑执行入口
+    #===================================================================================
+    #!!================================================================
+    #过 程 名：    Main
+    #程 序 包：
+    #功能类别：
+    #过程描述：    （包含范例）
+    #   载入package TestLib
+    #   执行测试逻辑
+    #参数说明：
+    #返 回 值：
+    #   0:  执行成功
+    #   1:  执行失败
+    #函数作者：    Peixing.Lin.(14507)
+    #生成日期：    2003-03-04 20:04:06
+    #修改纪录：
+    #!!================================================================
+    proc Main {} {
+        global auto_path
+        
+        # 默认执行成功
+        set result 0
+        if {([lsearch -exact [namespace children ::] ::TestLib] != -1)} {
+            # 如果TestLib已经载入，则退出；
+            return $result
+        }
+        set sTestLibDir             "Lib/CommonLib"
+        set sScriptsDir             "Scripts"
+        set sTestLogicFilePathName  ""
+        set sAutoTestPath           ""
+        set sTestLibPath            ""
+        # 得到带绝对路径的测试逻辑文件名
+        set sTestLogicFilePathName  [info script]
+        if { $sTestLogicFilePathName == "" } {
+            set sTestLogicFilePathName  [tgetcurfilepath]
+        }
+
+        set lPath   [file split $sTestLogicFilePathName]
+        # 得到Scripts目录名在测试逻辑路径列表中的索引
+        set iIdx -1
+        for { set i 0 } { $i < [llength $lPath] } { incr i} {
+            # 不区分大小写
+            if { [string equal -nocase $sScriptsDir [lindex $lPath $i]] != 1} {
+                continue
+            }
+            set iIdx $i
+            break
+        }
+        
+        #set iIdx    [lsearch -exact $lPath $sScriptsDir]
+        if {  -1 == $iIdx } {
+            puts "TestApp-测试逻辑脚本没有按照目录结构的定义放在规定的位置Scripts目录下!"
+            set result 1
+            return $result
+        } else {
+            #取得自动化工作目录
+            set sAutoTestPath [lindex $lPath 0]
+            for {set i 1} {$i < $iIdx} {incr i} {
+                set sAutoTestPath [file join $sAutoTestPath [lindex $lPath $i]]
+            }
+        }
+
+        # 得到package TestLib函数库所在的路径
+        set sTestLibPath [file join $sAutoTestPath $sTestLibDir]
+
+        # 将自动化体系的函数库的路径加入tcl系统函数库路径变量中
+        lappend auto_path $sTestLibPath
+        # 如果没有包索引文件，则创建
+        if { ![file exists [file join $sTestLibPath "pkgIndex.tcl"]] } {
+            if {[catch [list pkg_mkIndex $sTestLibPath *.tcl] errMsg]} {
+                puts "TestApp: 创建运行引索引失败！"
+                puts "TestApp: 失败信息：$errMsg"
+                set result 1
+                return $result
+            }
+        }
+        # 载入package TestLib
+        set status [ catch { package require TestLib } pkgVersion ]
+        if { $status != 0 } {
+            puts "TestApp: 无法找到TestLib的路径；\n$::auto_path\n错误信息: $pkgVersion\n"
+            set result 1
+            return $result
+        } else {
+            puts "TestApp: 载入测试包TestLib,版本号：$pkgVersion"
+        }
+        
+        # 调用支撑代码接口，执行测试逻辑
+        set result [::TestLib::RunEngine    ::TestApp::TestLogic     $sTestLogicFilePathName]
+        
+        # 进行用例执行后的信息收集
+        
+        return $result
+    }
+}
+
+# 测试逻辑执行入口点
+::TestApp::Main
+#--<end>--
+
+
+满规格TCONTfix类型小带宽利用率测试.cfg
+[TestLogicInfo]
+testClusterNames= IasGlobal/AsicGponTc
+productLib=
+toolLib=
+
+# 在TERM1控制台窗口上的建立/恢复配置命令/脚本 
+TERM1,SetupCommands=
+TERM1,RestoreCommands=
+TERM1,SetupScripts=
+ ###calculate-period  max-bandwidth-usage,min-loop-delay, manual   single-frame   calculate-period
+[TestCaseData]
+FIELDS,      testCaseNo,        testClusters,      testCaseName,    testCaseLevel,		args,      
+1, GPON_DBA_BwEffic_090,  IasGlobal/AsicGponTc, 满规格T-CONT fix类型小带宽利用率测试_包长64,  $chipVersion$execNetWork4$caseLevel2, \
+   -DBAProfileId1 131 -gponfixBandwidth1 1024 -DBAProfileId2 132 -gponfixBandwidth2 2048 \
+   -DBAProfileId3 133 -gponfixBandwidth3 4096 -DBAProfileId4 134 -gponfixBandwidth4 8192 \
+   -SendPkNum 1000  -sendPRate0 120000 -sendPRate1 120000 -sendPRate2 120000 -sendPRate3 120000 -pLength 60 -num 8 \
+   -exList1 896 -TolList1 100 -exList2 2128 -TolList2 200  -exList3 4746 -TolList3 300  -exList4 9492 -TolList4 1000 \
+   -tcontId 0 -time2 2 -StreamSum1 1 -time10 10 -gponLineProfileId1 112 -sendPRate 10 ,  
+
+2, GPON_DBA_BwEffic_090%1,  IasGlobal/AsicGponTc, 满规格T-CONT fix类型小带宽利用率测试_包长1518, $chipVersion$execNetWork4$caseLevel2, \
+   -DBAProfileId1 131 -gponfixBandwidth1 1024 -DBAProfileId2 132 -gponfixBandwidth2 2048 \
+   -DBAProfileId3 133 -gponfixBandwidth3 4096 -DBAProfileId4 134 -gponfixBandwidth4 8192 \
+   -SendPkNum 1000  -sendPRate0 120000 -sendPRate1 120000 -sendPRate2 120000 -sendPRate3 120000 -sendPRate 10 -pLength 1514 -num 8 \
+   -exList1 710 -TolList1 200 -exList2 1745 -TolList2 300  -exList3 3813 -TolList3 200  -exList4 7950 -TolList4 1000 \
+   -tcontId 0 -time2 2 -StreamSum1 1 -time10 10 -gponLineProfileId1 112 -sendPRate 10 , 
+   
+满规格TCONTfix类型小带宽利用率测试.txt
+逻辑编号: GPON_DBA_BwEffic_090
+逻辑名称: 满规格T-CONT fix类型小带宽利用率测试
+逻辑说明: 满规格T-CONT fix类型小带宽利用率测试
+组网编号: 
+预置条件:
+测试步骤: 
+	
+
+010.增加线路模板:
+	IasOntLineProfileAdd(-TermName $oltTerm  -OntLineProfileType gpon  -ProfileId $Data(gponLineProfileId1)) ;
+
+020.配置业务模板中UNI端口的VLAN:
+    IasNewModeOntPortSet (-TermName $oltTerm -XponMode gpon -ProfileId $gponSrvProfileId  -EthPort $OntEthPortNum -PotsPort $OntPotsPortNum);
+    IasNewModeOntPortMultiVlanAdd (-TermName $oltTerm -ProfileId $gponSrvProfileId -StartVlan $oltCvlanId -Num $Data(num));
+
+030.添加DBA模板:	
+    IasOltTcontAdd(-TermName $oltTerm -ProfileId $Data(DBAProfileId1) -TcontType type1 -FixBandwidth $Data(gponfixBandwidth1));
+    IasOltTcontAdd(-TermName $oltTerm -ProfileId $Data(DBAProfileId2) -TcontType type1 -FixBandwidth $Data(gponfixBandwidth2));
+    IasOltTcontAdd(-TermName $oltTerm -ProfileId $Data(DBAProfileId3) -TcontType type1 -FixBandwidth $Data(gponfixBandwidth3));
+    IasOltTcontAdd(-TermName $oltTerm -ProfileId $Data(DBAProfileId4) -TcontType type1 -FixBandwidth $Data(gponfixBandwidth4));
+
+040.配置多个TCONT绑定模板:
+    IasNewModeOntMultiTcontBind (-TermName $oltTerm  -ProfileId $Data(gponLineProfileId1)  -TcontId $Data(tcontId)  -DbaProfileId $Data(DBAProfileId1) -Num $Data(num)); 
+
+050.配置GEM绑定TCONT:
+	IasNewModeOntMultiGemAdd (-TermName $oltTerm  -ProfileId $Data(gponLineProfileId1) -GemIndex $gponOltGemIndex -TcontId $Data(tcontId) -Num $Data(num) -TcontNum $Data(num) -Encrypt on);     
+         
+060.多个Gemport业务映射多个Vlan:
+    IasMultiOntGemMappingAdd(-TermName $oltTerm  -ProfileId $Data(gponLineProfileId1)  -GemIndex $gponOltGemIndex -MappingIndex $gponOltMapIndex -CVlanId  $oltCvlanId -Num $Data(num) -GemPortNum $Data(num) );
+  		     
+070.添加ONT:
+   	IasOntAdd(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -Port $gponOltPort -Sn $ont1SN -OntId $gponOltOntId -OntWay omci -OntlineProfileId $Data(gponLineProfileId1) -OntSrvProfileId $gponSrvProfileId); 
+  	IasCommonDelay(-Time $time);   
+
+080.增加多个service-port:     
+    IasVlanMultiServPortAdd(-TermName $oltTerm -ServicePortIndex $oltSrvIndex -TgLMNetPMainVlan $oltSvlanId -GponOltFSPort $gponOltFSPort -GponOltOntId $gponOltOntId \
+ 	-GponOltGemIndex $gponOltGemIndex -OltCVlan $oltCvlanId -Num $Data(num) -GemPortNum $Data(num) -OltTrafficIndex $oltTrafficIndex  );
+
+090.判断ONT的状态:
+    GponOntCtrolFlagCheck(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -Port $gponOltPort -OntId $gponOltOntId -CmpList {-Controlflag active -Runstate online -Configstate normal});   
+
+100. 单向引流，mac地址学习，下行: 
+    AsicTgSingleStreamSendAndStat(-TsuID $tsuID -SendPort $tsuPort1 -StaPort $tsuPort0 -StatMode PORT  \
+	-Time $Data(time2) -Speed $Data(sendPRate) -StreamSum $Data(num) \
+	-StreamPara "{-StreamName DnStream -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac } \
+	{-StreamName DnStream1 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac  -DMac $tgLMUserPSmac } \
+	{-StreamName DnStream2 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac } \
+	{-StreamName DnStream3 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac } \
+	{-StreamName DnStream4 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac } \
+	{-StreamName DnStream5 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac} \
+	{-StreamName DnStream6 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac } \
+	{-StreamName DnStream7 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac } ") ;
+
+110. 单向引流，mac地址学习，上行: 
+    AsicTgSingleStreamSendAndStat(-TsuID $tsuID -SendPort $tsuPort0 -StaPort $tsuPort1 -StatMode PORT  \
+	-Time $Data(time2) -Speed $Data(sendPRate) -StreamSum $Data(num) \
+	-StreamPara "{-StreamName UpStream -Vlan $oltCVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream1 -Vlan [expr $oltCVlan+1] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream2 -Vlan [expr $oltCVlan+2] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream3 -Vlan [expr $oltCVlan+3] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream4 -Vlan [expr $oltCVlan+4] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream5 -Vlan [expr $oltCVlan+5] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream6 -Vlan [expr $oltCVlan+6] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac  } \
+	{-StreamName UpStream7 -Vlan [expr $oltCVlan+7] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac  } ") ;
+
+120.用tesgine上行发包-1024k: 
+	AsicTgSingleStreamSendAndCheckRateMulti(-TsuID $tsuID -SendPort $tsuPort0 -StatPort $tsuPort1 -RateMode Kbps \
+	-Speed $Data(sendPRate0) -StatMode STREAM -SendTime 10 -MatchRMode KBPS -ExpectSpeed $Data(exList1) -Tol $Data(TolList1) \
+	-StreamSum $Data(num) \
+	-StreamPara "{-StreamName UpStream -Length $Data(pLength) -Vlan $oltCVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream1 -Length $Data(pLength) -Vlan [expr $oltCVlan+1] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream2 -Length $Data(pLength) -Vlan [expr $oltCVlan+2] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream3 -Length $Data(pLength) -Vlan [expr $oltCVlan+3] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream4 -Length $Data(pLength) -Vlan [expr $oltCVlan+4] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream5 -Length $Data(pLength) -Vlan [expr $oltCVlan+5] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream6 -Length $Data(pLength) -Vlan [expr $oltCVlan+6] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac  } \
+	{-StreamName UpStream7 -Length $Data(pLength) -Vlan [expr $oltCVlan+7] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac  } ") ;
+
+130.配置多个TCONT绑定模板:
+    IasNewModeOntMultiTcontBind (-TermName $oltTerm -ProfileId $Data(gponLineProfileId1) -TcontId $Data(tcontId) -DbaProfileId $Data(DBAProfileId2) -Num $Data(num)); 
+
+140.用tesgine上行发包-2048k: 
+	AsicTgSingleStreamSendAndCheckRateMulti(-TsuID $tsuID -SendPort $tsuPort0 -StatPort $tsuPort1 -RateMode Kbps \
+	-Speed $Data(sendPRate1) -StatMode STREAM -SendTime 10 -MatchRMode KBPS -ExpectSpeed $Data(exList2) -Tol $Data(TolList2) \
+	-StreamSum $Data(num) \
+	-StreamPara "{-StreamName UpStream -Length $Data(pLength) -Vlan $oltCVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream1 -Length $Data(pLength) -Vlan [expr $oltCVlan+1] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream2 -Length $Data(pLength) -Vlan [expr $oltCVlan+2] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream3 -Length $Data(pLength) -Vlan [expr $oltCVlan+3] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream4 -Length $Data(pLength) -Vlan [expr $oltCVlan+4] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream5 -Length $Data(pLength) -Vlan [expr $oltCVlan+5] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream6 -Length $Data(pLength) -Vlan [expr $oltCVlan+6] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac  } \
+	{-StreamName UpStream7 -Length $Data(pLength) -Vlan [expr $oltCVlan+7] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac  } ") ;
+
+150.配置多个TCONT绑定模板:
+    IasNewModeOntMultiTcontBind (-TermName $oltTerm -ProfileId $Data(gponLineProfileId1) -TcontId $Data(tcontId) -DbaProfileId $Data(DBAProfileId3) -Num $Data(num)); 
+
+160.用tesgine上行发包-4096k: 
+	AsicTgSingleStreamSendAndCheckRateMulti(-TsuID $tsuID -SendPort $tsuPort0 -StatPort $tsuPort1 -RateMode Kbps \
+	-Speed $Data(sendPRate2) -StatMode STREAM -SendTime 10 -MatchRMode KBPS -ExpectSpeed $Data(exList3) -Tol $Data(TolList3) \
+	-StreamSum $Data(num) \
+	-StreamPara "{-StreamName UpStream -Length $Data(pLength) -Vlan $oltCVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream1 -Length $Data(pLength) -Vlan [expr $oltCVlan+1] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream2 -Length $Data(pLength) -Vlan [expr $oltCVlan+2] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream3 -Length $Data(pLength) -Vlan [expr $oltCVlan+3] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream4 -Length $Data(pLength) -Vlan [expr $oltCVlan+4] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream5 -Length $Data(pLength) -Vlan [expr $oltCVlan+5] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream6 -Length $Data(pLength) -Vlan [expr $oltCVlan+6] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac  } \
+	{-StreamName UpStream7 -Length $Data(pLength) -Vlan [expr $oltCVlan+7] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac  } ") ;
+
+170.配置多个TCONT绑定模板:
+    IasNewModeOntMultiTcontBind (-TermName $oltTerm -ProfileId $Data(gponLineProfileId1) -TcontId $Data(tcontId) -DbaProfileId $Data(DBAProfileId4) -Num $Data(num)); 
+
+180.用tesgine上行发包-8192k: 
+	AsicTgSingleStreamSendAndCheckRateMulti(-TsuID $tsuID -SendPort $tsuPort0 -StatPort $tsuPort1 -RateMode Kbps \
+	-Speed $Data(sendPRate3) -StatMode STREAM -SendTime $Data(time10) -MatchRMode KBPS -ExpectSpeed $Data(exList4) -Tol $Data(TolList4) \
+	-StreamSum $Data(num) \
+	-StreamPara "{-StreamName UpStream -Length $Data(pLength) -Vlan $oltCVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream1 -Length $Data(pLength) -Vlan [expr $oltCVlan+1] -SMac $tgLMUserPSmac  -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream2 -Length $Data(pLength) -Vlan [expr $oltCVlan+2] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream3 -Length $Data(pLength) -Vlan [expr $oltCVlan+3] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream4 -Length $Data(pLength) -Vlan [expr $oltCVlan+4] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream5 -Length $Data(pLength) -Vlan [expr $oltCVlan+5] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac   } \
+	{-StreamName UpStream6 -Length $Data(pLength) -Vlan [expr $oltCVlan+6] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac  } \
+	{-StreamName UpStream7 -Length $Data(pLength) -Vlan [expr $oltCVlan+7] -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac  } ") ;
+
+ 
+资源释放:
+
+200.延迟一段时间:
+    IasCommonDelay(-Time $Data(time2));
+
+230.删除业务流:
+    IasVlanServPortDelete(-TermName $oltTerm -DeleteType vlan -StartVlan $oltSvlanId -ServiceType gpon -FrameSlotPort $gponOltFSPort);
+
+240.删除端口下的所有ONT: 
+    IasOntDel(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -Port $gponOltPort);
+ 
+250.删除线路模板: 
+    IasOntLineProfileDelete (-TermName $oltTerm  -ProfileId $Data(gponLineProfileId1));
+
+260.删除dba模板:
+    IasOltTcontDel(-TermName $oltTerm -ProfileId $Data(DBAProfileId1));
+    IasOltTcontDel(-TermName $oltTerm -ProfileId $Data(DBAProfileId2));
+    IasOltTcontDel(-TermName $oltTerm -ProfileId $Data(DBAProfileId3));
+    IasOltTcontDel(-TermName $oltTerm -ProfileId $Data(DBAProfileId4));
+                                       
