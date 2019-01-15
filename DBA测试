@@ -1,0 +1,135 @@
+ONU支持TCONT规格数目验证OMCI共享TCONT
+namespace eval TestApp {
+
+    proc TestLogic { args } {
+		
+        
+        # 环境信息清理动作
+#        AsicEnvironmentInfoInitialization
+        
+        #===================================================================================
+        #  系统变量，测试人员不可更改
+        #===================================================================================
+        # 取得当前过程名
+        set sProcName [::TestLib::GetProcedureName -complete]
+        # 向窗口打印提示信息
+        set strCmd "========Begin:$aTestCaseData(testCaseNo)=========\033\033"
+		::Common::CSend $term1 -r strRet -s [list "#"] -t 10000 "$strCmd"
+				
+		#获取测试数据，重新封装到数组Data里去
+        CommonArgsToArray $aTestCaseData(args) Data
+        #当前目录下执行的测试逻辑文件
+        set strFileName [string map {app.tcl txt} $::TestLib::naLibData(testLogicFileName)]
+      	#使用parseLogicFile执行测试逻辑
+        set res [parseLogicFile $strFileName]
+	
+	    #　收集环境信息
+#		AsicEnvironmentInfoCollect $res	
+	
+        #显示执行结果
+        ShowTraceMessage -level 10 -msg "result = $res"
+        #返回执行结果
+        return $res
+        
+    }
+    #===================================================================================
+    # 系统函数调用，测试人员不可更改
+    #   测试逻辑执行入口
+    #===================================================================================
+    #!!================================================================
+    #过 程 名：    Main
+    #程 序 包：
+    #功能类别：
+    #过程描述：    （包含范例）
+    #   载入package TestLib
+    #   执行测试逻辑
+    #参数说明：
+    #返 回 值：
+    #   0:  执行成功
+    #   1:  执行失败
+    #函数作者：    Peixing.Lin.(14507)
+    #生成日期：    2003-03-04 20:04:06
+    #修改纪录：
+    #!!================================================================
+    proc Main {} {
+        global auto_path
+        
+        # 默认执行成功
+        set result 0
+        if {([lsearch -exact [namespace children ::] ::TestLib] != -1)} {
+            # 如果TestLib已经载入，则退出；
+            return $result
+        }
+        set sTestLibDir             "Lib/CommonLib"
+        set sScriptsDir             "Scripts"
+        set sTestLogicFilePathName  ""
+        set sAutoTestPath           ""
+        set sTestLibPath            ""
+        # 得到带绝对路径的测试逻辑文件名
+        set sTestLogicFilePathName  [info script]
+        if { $sTestLogicFilePathName == "" } {
+            set sTestLogicFilePathName  [tgetcurfilepath]
+        }
+
+        set lPath   [file split $sTestLogicFilePathName]
+        # 得到Scripts目录名在测试逻辑路径列表中的索引
+        set iIdx -1
+        for { set i 0 } { $i < [llength $lPath] } { incr i} {
+            # 不区分大小写
+            if { [string equal -nocase $sScriptsDir [lindex $lPath $i]] != 1} {
+                continue
+            }
+            set iIdx $i
+            break
+        }
+        
+        #set iIdx    [lsearch -exact $lPath $sScriptsDir]
+        if {  -1 == $iIdx } {
+            puts "TestApp-测试逻辑脚本没有按照目录结构的定义放在规定的位置Scripts目录下!"
+            set result 1
+            return $result
+        } else {
+            #取得自动化工作目录
+            set sAutoTestPath [lindex $lPath 0]
+            for {set i 1} {$i < $iIdx} {incr i} {
+                set sAutoTestPath [file join $sAutoTestPath [lindex $lPath $i]]
+            }
+        }
+
+        # 得到package TestLib函数库所在的路径
+        set sTestLibPath [file join $sAutoTestPath $sTestLibDir]
+
+        # 将自动化体系的函数库的路径加入tcl系统函数库路径变量中
+        lappend auto_path $sTestLibPath
+        # 如果没有包索引文件，则创建
+        if { ![file exists [file join $sTestLibPath "pkgIndex.tcl"]] } {
+            if {[catch [list pkg_mkIndex $sTestLibPath *.tcl] errMsg]} {
+                puts "TestApp: 创建运行引索引失败！"
+                puts "TestApp: 失败信息：$errMsg"
+                set result 1
+                return $result
+            }
+        }
+        # 载入package TestLib
+        set status [ catch { package require TestLib } pkgVersion ]
+        if { $status != 0 } {
+            puts "TestApp: 无法找到TestLib的路径；\n$::auto_path\n错误信息: $pkgVersion\n"
+            set result 1
+            return $result
+        } else {
+            puts "TestApp: 载入测试包TestLib,版本号：$pkgVersion"
+        }
+        
+        # 调用支撑代码接口，执行测试逻辑
+        set result [::TestLib::RunEngine    ::TestApp::TestLogic     $sTestLogicFilePathName]
+        
+        # 进行用例执行后的信息收集
+        
+        return $result
+    }
+}
+
+# 测试逻辑执行入口点
+::TestApp::Main
+#--<end>--
+
