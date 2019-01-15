@@ -1,0 +1,303 @@
+8个TCONT路Native_TDM时延.app.tcl
+
+namespace eval TestApp {
+
+    proc TestLogic { args } {
+		
+        
+        # 环境信息清理动作
+        AsicEnvironmentInfoInitialization
+        
+        #===================================================================================
+        #  系统变量，测试人员不可更改
+        #===================================================================================
+        # 取得当前过程名
+        set sProcName [::TestLib::GetProcedureName -complete]
+        # 向窗口打印提示信息
+        set strCmd "========Begin:$aTestCaseData(testCaseNo)=========\033\033"
+		::Common::CSend $term1 -r strRet -s [list "#"] -t 10000 "$strCmd"
+				
+		#获取测试数据，重新封装到数组Data里去
+        CommonArgsToArray $aTestCaseData(args) Data
+        #当前目录下执行的测试逻辑文件
+        set strFileName [string map {app.tcl txt} $::TestLib::naLibData(testLogicFileName)]
+      	#使用parseLogicFile执行测试逻辑
+        set res [parseLogicFile $strFileName]
+	
+	    #　收集环境信息
+		AsicEnvironmentInfoCollect $res	
+	
+        #显示执行结果
+        ShowTraceMessage -level 10 -msg "result = $res"
+        #返回执行结果
+        return $res
+        
+    }
+    #===================================================================================
+    # 系统函数调用，测试人员不可更改
+    #   测试逻辑执行入口
+    #===================================================================================
+    #!!================================================================
+    #过 程 名：    Main
+    #程 序 包：
+    #功能类别：
+    #过程描述：    （包含范例）
+    #   载入package TestLib
+    #   执行测试逻辑
+    #参数说明：
+    #返 回 值：
+    #   0:  执行成功
+    #   1:  执行失败
+    #函数作者：    Peixing.Lin.(14507)
+    #生成日期：    2003-03-04 20:04:06
+    #修改纪录：
+    #!!================================================================
+    proc Main {} {
+        global auto_path
+        
+        # 默认执行成功
+        set result 0
+        if {([lsearch -exact [namespace children ::] ::TestLib] != -1)} {
+            # 如果TestLib已经载入，则退出；
+            return $result
+        }
+        set sTestLibDir             "Lib/CommonLib"
+        set sScriptsDir             "Scripts"
+        set sTestLogicFilePathName  ""
+        set sAutoTestPath           ""
+        set sTestLibPath            ""
+        # 得到带绝对路径的测试逻辑文件名
+        set sTestLogicFilePathName  [info script]
+        if { $sTestLogicFilePathName == "" } {
+            set sTestLogicFilePathName  [tgetcurfilepath]
+        }
+
+        set lPath   [file split $sTestLogicFilePathName]
+        # 得到Scripts目录名在测试逻辑路径列表中的索引
+        set iIdx -1
+        for { set i 0 } { $i < [llength $lPath] } { incr i} {
+            # 不区分大小写
+            if { [string equal -nocase $sScriptsDir [lindex $lPath $i]] != 1} {
+                continue
+            }
+            set iIdx $i
+            break
+        }
+        
+        #set iIdx    [lsearch -exact $lPath $sScriptsDir]
+        if {  -1 == $iIdx } {
+            puts "TestApp-测试逻辑脚本没有按照目录结构的定义放在规定的位置Scripts目录下!"
+            set result 1
+            return $result
+        } else {
+            #取得自动化工作目录
+            set sAutoTestPath [lindex $lPath 0]
+            for {set i 1} {$i < $iIdx} {incr i} {
+                set sAutoTestPath [file join $sAutoTestPath [lindex $lPath $i]]
+            }
+        }
+
+        # 得到package TestLib函数库所在的路径
+        set sTestLibPath [file join $sAutoTestPath $sTestLibDir]
+
+        # 将自动化体系的函数库的路径加入tcl系统函数库路径变量中
+        lappend auto_path $sTestLibPath
+        # 如果没有包索引文件，则创建
+        if { ![file exists [file join $sTestLibPath "pkgIndex.tcl"]] } {
+            if {[catch [list pkg_mkIndex $sTestLibPath *.tcl] errMsg]} {
+                puts "TestApp: 创建运行引索引失败！"
+                puts "TestApp: 失败信息：$errMsg"
+                set result 1
+                return $result
+            }
+        }
+        # 载入package TestLib
+        set status [ catch { package require TestLib } pkgVersion ]
+        if { $status != 0 } {
+            puts "TestApp: 无法找到TestLib的路径；\n$::auto_path\n错误信息: $pkgVersion\n"
+            set result 1
+            return $result
+        } else {
+            puts "TestApp: 载入测试包TestLib,版本号：$pkgVersion"
+        }
+        
+        # 调用支撑代码接口，执行测试逻辑
+        set result [::TestLib::RunEngine    ::TestApp::TestLogic     $sTestLogicFilePathName]
+        
+        # 进行用例执行后的信息收集
+        
+        return $result
+    }
+}
+
+# 测试逻辑执行入口点
+::TestApp::Main
+#--<end>--
+
+
+
+8个TCONT路Native_TDM时延.cfg
+[TestLogicInfo]
+testClusterNames= IasGlobal/AsicGponTc
+productLib=
+toolLib=
+
+# 在TERM1控制台窗口上的建立/恢复配置命令/脚本 
+TERM1,SetupCommands=
+TERM1,RestoreCommands=
+TERM1,SetupScripts=
+ ###calculate-period  max-bandwidth-usage,min-loop-delay, manual   single-frame   calculate-period
+[TestCaseData]
+FIELDS,      testCaseNo,        testClusters,      testCaseName,    testCaseLevel,		args,      
+1, GPON_DBA_App_090,  IasGlobal/AsicGponTc, 8个T-CONT8路Native_TDM时延,  $chipVersion$execNetWork4$caseLevel2, \
+   -DBAAsType min-loop-delay -Onuid 253 -Alloc 256 -Alloc1 509 -TcontType 0 -Fix 80 -Ab 0 -Max 0 -SinMul 1 \
+   -SendPkNum 2000 -PktLength 60 -BurstTimes 10 -userPortRate 8000 -netPortRate 8000 \
+   -ExpectRec 2500 -AllowError 2500 -StatMode STREAM -StopTimes 30 -num 8 -gemportnum 8 \
+   -gponLineProfileId1 112 -DBAProfileId 1 -tcontId 0 ,
+
+8个TCONT路Native_TDM时延.txt
+逻辑编号: GPON_DBA_App_090
+逻辑名称: 8个T-CONT8路Native_TDM时延
+逻辑说明: 8个T-CONT8路Native_TDM时延
+组网编号: 
+预置条件:
+测试步骤:
+
+	
+010.增加线路模板:
+	IasOntLineProfileAdd(-TermName $oltTerm  -OntLineProfileType gpon  -ProfileId $Data(gponLineProfileId1)) ;
+
+020.配置业务模板中UNI端口的VLAN:
+    IasNewModeOntPortSet (-TermName $oltTerm -XponMode gpon -ProfileId $gponSrvProfileId  -EthPort $OntEthPortNum -PotsPort $OntPotsPortNum);
+    IasNewModeOntPortMultiVlanAdd (-TermName $oltTerm -ProfileId $gponSrvProfileId -StartVlan $oltCVlan -Num $Data(num));
+
+030.配置多个TCONT绑定模板:
+    IasNewModeOntMultiTcontBind (-TermName $oltTerm  -ProfileId $Data(gponLineProfileId1) -TcontId $Data(tcontId)  -DbaProfileId $Data(DBAProfileId) -Num $Data(num)); 
+
+040.配置GEM绑定TCONT:
+	IasNewModeOntMultiGemAdd (-TermName $oltTerm  -ProfileId $Data(gponLineProfileId1) -GemIndex $gponOltGemIndex -TcontId $Data(tcontId) -Num $Data(num) -TcontNum $Data(num) -Encrypt off);     
+         
+050.多个Gemport业务映射多个Vlan:
+    IasMultiOntGemMappingAdd(-TermName $oltTerm  -ProfileId $Data(gponLineProfileId1) -GemIndex $gponOltGemIndex -MappingIndex $gponOltMapIndex -CVlanId  $oltCVlan -Num $Data(num) -GemPortNum $Data(num) );
+  		     
+060.添加ONT:
+	IasOntAdd(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -Port $gponOltPort -Sn $gponOltOntSN -OntId $gponOltOntId -OntWay $gponOntAddWay -OntlineProfileId $Data(gponLineProfileId1) -OntSrvProfileId $gponSrvProfileId ); 
+   	IasCommonDelay(-Time $time);
+
+070.增加多个service-port:     
+    IasVlanMultiServPortAdd(-TermName $oltTerm -ServicePortIndex $oltSrvIndex -TgLMNetPMainVlan $tgLMNetPMainVlan -GponOltFSPort $gponOltFSPort -GponOltOntId $gponOltOntId \
+ 	-GponOltGemIndex $gponOltGemIndex -OltCVlan $oltCVlan -Num $Data(num) -GemPortNum $Data(num) -OltTrafficIndex $oltTrafficIndex  );
+
+080.判断ONT的状态:  
+    GponOntCtrolFlagCheck(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -Port $gponOltPort -OntId $gponOltOntId -CmpList {-Controlflag active -Runstate online -Configstate normal});   
+
+090.修改ONT DBA配置为Type0 fix 5120kbps，单帧计算单帧分配，8个tcont:
+    AsicOltGmacDbaTcontModifySet(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -OltId $gponOltPort -OntId $gponOltOntId \
+    -AllocId [expr $Data(Alloc)+256*0] -TcontType $Data(TcontType) -FixBw $Data(Fix) -AbBw $Data(Ab) -MaxBw $Data(Max) -SingleMulti $Data(SinMul)); 
+    AsicOltGmacDbaTcontModifySet(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -OltId $gponOltPort -OntId $gponOltOntId \
+    -AllocId [expr $Data(Alloc)+256*1] -TcontType $Data(TcontType) -FixBw $Data(Fix) -AbBw $Data(Ab) -MaxBw $Data(Max) -SingleMulti $Data(SinMul));
+    AsicOltGmacDbaTcontModifySet(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -OltId $gponOltPort -OntId $gponOltOntId \
+    -AllocId [expr $Data(Alloc)+256*2] -TcontType $Data(TcontType) -FixBw $Data(Fix) -AbBw $Data(Ab) -MaxBw $Data(Max) -SingleMulti $Data(SinMul));
+    AsicOltGmacDbaTcontModifySet(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -OltId $gponOltPort -OntId $gponOltOntId \
+    -AllocId [expr $Data(Alloc)+256*3] -TcontType $Data(TcontType) -FixBw $Data(Fix) -AbBw $Data(Ab) -MaxBw $Data(Max) -SingleMulti $Data(SinMul));
+    AsicOltGmacDbaTcontModifySet(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -OltId $gponOltPort -OntId $gponOltOntId \
+    -AllocId [expr $Data(Alloc)+256*4] -TcontType $Data(TcontType) -FixBw $Data(Fix) -AbBw $Data(Ab) -MaxBw $Data(Max) -SingleMulti $Data(SinMul));
+    AsicOltGmacDbaTcontModifySet(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -OltId $gponOltPort -OntId $gponOltOntId \
+    -AllocId [expr $Data(Alloc)+256*5] -TcontType $Data(TcontType) -FixBw $Data(Fix) -AbBw $Data(Ab) -MaxBw $Data(Max) -SingleMulti $Data(SinMul));
+    AsicOltGmacDbaTcontModifySet(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -OltId $gponOltPort -OntId $gponOltOntId \
+    -AllocId [expr $Data(Alloc)+256*6] -TcontType $Data(TcontType) -FixBw $Data(Fix) -AbBw $Data(Ab) -MaxBw $Data(Max) -SingleMulti $Data(SinMul));
+    AsicOltGmacDbaTcontModifySet(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -OltId $gponOltPort -OntId $gponOltOntId \
+    -AllocId [expr $Data(Alloc)+256*7] -TcontType $Data(TcontType) -FixBw $Data(Fix) -AbBw $Data(Ab) -MaxBw $Data(Max) -SingleMulti $Data(SinMul));
+    
+100. 单向引流，mac地址学习，下行: 
+	AsicTgSingleStreamSendAndStat(-sendPort $tgLinkMainNetPort -staPort $tgLinkMainUserPort -StatMode port \
+	-Time $tgSendLearnTime -SendMode SINGLE_BURST -BurPacket $tgSendLearnPacket -Speed $tgLMNetPsendRate \
+	-StreamSum 8 -StreamPara " \
+	{-StreamName DnStream -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac } \
+	{-StreamName DnStream1 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-11  -DMac 00-00-88-00-00-21 } \
+	{-StreamName DnStream2 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-12 -DMac 00-00-88-00-00-22   } \
+	{-StreamName DnStream3 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-13 -DMac 00-00-88-00-00-23   } \
+	{-StreamName DnStream4 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-14 -DMac 00-00-88-00-00-24   } \
+	{-StreamName DnStream5 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-15 -DMac 00-00-88-00-00-25   } \
+	{-StreamName DnStream6 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-16 -DMac 00-00-88-00-00-26  } \
+	{-StreamName DnStream7 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-17 -DMac 00-00-88-00-00-27  } ") ;
+
+110. 单向引流，mac地址学习，上行: 
+	AsicTgSingleStreamSendAndStat(-sendPort $tgLinkMainUserPort -staPort $tgLinkMainNetPort -StatMode port \
+	-Time $tgSendLearnTime -SendMode SINGLE_BURST -BurPacket $tgSendLearnPacket -Speed $tgLMNetPsendRate \
+	-StreamSum 8 -StreamPara " \
+	{-StreamName UpStream -Vlan $oltCVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac } \
+	{-StreamName UpStream1 -Vlan [expr $oltCVlan+1] -SMac 00-00-88-00-00-21  -DMac 00-00-22-00-00-11 } \
+	{-StreamName UpStream2 -Vlan [expr $oltCVlan+2] -SMac 00-00-88-00-00-22 -DMac 00-00-22-00-00-12   } \
+	{-StreamName UpStream3 -Vlan [expr $oltCVlan+3] -SMac 00-00-88-00-00-23 -DMac 00-00-22-00-00-13   } \
+	{-StreamName UpStream4 -Vlan [expr $oltCVlan+4] -SMac 00-00-88-00-00-24 -DMac 00-00-22-00-00-14   } \
+	{-StreamName UpStream5 -Vlan [expr $oltCVlan+5] -SMac 00-00-88-00-00-25 -DMac 00-00-22-00-00-15   } \
+	{-StreamName UpStream6 -Vlan [expr $oltCVlan+6] -SMac 00-00-88-00-00-26 -DMac 00-00-22-00-00-16  } \
+	{-StreamName UpStream7 -Vlan [expr $oltCVlan+7] -SMac 00-00-88-00-00-27 -DMac 00-00-22-00-00-17  } ") ;
+		
+120. 双向8000pps*8发送数据流（持续发包）: 
+	AsicTgAppDoubleSteramVersusSendNoStop(-sendPort $tgLinkMainUserPort -staPort $tgLinkMainNetPort -StatMode $Data(StatMode) \
+	-SendMode CONTINUE -BurPacket $Data(SendPkNum) -RateMode PacketsPerSecond \
+	-Speed $Data(userPortRate) -StaPSpeed $Data(netPortRate) -ExpectRec $Data(ExpectRec) -AllowError $Data(AllowError) \
+	-StaItem "PS_TX_STREAM_PACKETS S_RX_MAX_LATENCY S_RX_AVERAGE_LATENCY S_RX_MIN_LATENCY PS_RX_STREAM_PACKETS S_RX_SEQUENCE_ERRORS S_RX_PAYLOAD_ERRORS " \
+	-StaJudgeExp {[0-9]*\s*[0-9]*\s*0} \
+	-StreamSum 16 -StreamPara " \
+	{-StreamName Up1 -Vlan $oltCVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac -Length $Data(PktLength)} \  
+	{-StreamName Down1 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac -Length $Data(PktLength)} \  
+	{-StreamName Up2 -Vlan [expr $oltCVlan+1] -SMac 00-00-88-00-00-21 -DMac 00-00-22-00-00-11 -Length $Data(PktLength)} \ 
+	{-StreamName Down2 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-11 -DMac 00-00-88-00-00-21 -Length $Data(PktLength)} \  
+	{-StreamName Up3 -Vlan [expr $oltCVlan+2] -SMac 00-00-88-00-00-22 -DMac 00-00-22-00-00-12 -Length $Data(PktLength)} \ 
+	{-StreamName Down3 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-12 -DMac 00-00-88-00-00-22 -Length $Data(PktLength)} \
+	{-StreamName Up4 -Vlan [expr $oltCVlan+3] -SMac 00-00-88-00-00-23 -DMac 00-00-22-00-00-13 -Length $Data(PktLength)} \ 
+	{-StreamName Down4 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-13 -DMac 00-00-88-00-00-23 -Length $Data(PktLength)} \
+	{-StreamName Up5 -Vlan [expr $oltCVlan+4] -SMac 00-00-88-00-00-24 -DMac 00-00-22-00-00-14 -Length $Data(PktLength)} \ 
+	{-StreamName Down5 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-14 -DMac 00-00-88-00-00-24 -Length $Data(PktLength)} \
+	{-StreamName Up6 -Vlan [expr $oltCVlan+5] -SMac 00-00-88-00-00-25 -DMac 00-00-22-00-00-15 -Length $Data(PktLength)} \ 
+	{-StreamName Down6 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-15 -DMac 00-00-88-00-00-25 -Length $Data(PktLength)} \
+	{-StreamName Up7 -Vlan [expr $oltCVlan+6] -SMac 00-00-88-00-00-26 -DMac 00-00-22-00-00-16 -Length $Data(PktLength)} \ 
+	{-StreamName Down7 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-16 -DMac 00-00-88-00-00-26 -Length $Data(PktLength)} \
+	{-StreamName Up8 -Vlan [expr $oltCVlan+7] -SMac 00-00-88-00-00-27 -DMac 00-00-22-00-00-17 -Length $Data(PktLength)} \  
+	{-StreamName Down8 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-17 -DMac 00-00-88-00-00-27 -Length $Data(PktLength)} \
+	" ); 
+	
+130.发包5分钟:
+    IasCommonDelay(-Time $time);	
+	
+140. 停止双向发送数据流,判断最大时延是否大于0.5ms: 
+	AsicTgAppDoubleSteramVersusSendStopAndStaCompare(-sendPort $tgLinkMainUserPort -staPort $tgLinkMainNetPort -StatMode $Data(StatMode) \
+	-Speed $Data(userPortRate) -StaPSpeed $Data(netPortRate) -ExpectRec $Data(ExpectRec) -AllowError $Data(AllowError) \
+	-StaItem "PS_TX_STREAM_PACKETS S_RX_MAX_LATENCY S_RX_AVERAGE_LATENCY S_RX_MIN_LATENCY PS_RX_STREAM_PACKETS S_RX_SEQUENCE_ERRORS S_RX_PAYLOAD_ERRORS " \
+	-StaJudgeExp {[0-9]*\s*[0-9]*\s*0} \
+	-CompStrList {Up1 Up2 Up3 Up4 Up5 Up6 Up7 Up8 Down1 Down2 Down3 Down4 Down5 Down6 Down7 Down8} -StreamSum 16 -StreamPara " \
+	{-StreamName Up1 -Vlan $oltCVlan -SMac $tgLMUserPSmac -DMac $tgLMNetPSmac -Length $Data(PktLength)} \  
+	{-StreamName Down1 -Vlan $tgLMNetPMainVlan -SMac $tgLMNetPSmac -DMac $tgLMUserPSmac -Length $Data(PktLength)} \  
+	{-StreamName Up2 -Vlan [expr $oltCVlan+1] -SMac 00-00-88-00-00-21 -DMac 00-00-22-00-00-11 -Length $Data(PktLength)} \ 
+	{-StreamName Down2 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-11 -DMac 00-00-88-00-00-21 -Length $Data(PktLength)} \  
+	{-StreamName Up3 -Vlan [expr $oltCVlan+2] -SMac 00-00-88-00-00-22 -DMac 00-00-22-00-00-12 -Length $Data(PktLength)} \ 
+	{-StreamName Down3 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-12 -DMac 00-00-88-00-00-22 -Length $Data(PktLength)} \
+	{-StreamName Up4 -Vlan [expr $oltCVlan+3] -SMac 00-00-88-00-00-23 -DMac 00-00-22-00-00-13 -Length $Data(PktLength)} \ 
+	{-StreamName Down4 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-13 -DMac 00-00-88-00-00-23 -Length $Data(PktLength)} \
+	{-StreamName Up5 -Vlan [expr $oltCVlan+4] -SMac 00-00-88-00-00-24 -DMac 00-00-22-00-00-14 -Length $Data(PktLength)} \ 
+	{-StreamName Down5 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-14 -DMac 00-00-88-00-00-24 -Length $Data(PktLength)} \
+	{-StreamName Up6 -Vlan [expr $oltCVlan+5] -SMac 00-00-88-00-00-25 -DMac 00-00-22-00-00-15 -Length $Data(PktLength)} \ 
+	{-StreamName Down6 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-15 -DMac 00-00-88-00-00-25 -Length $Data(PktLength)} \
+	{-StreamName Up7 -Vlan [expr $oltCVlan+6] -SMac 00-00-88-00-00-26 -DMac 00-00-22-00-00-16 -Length $Data(PktLength)} \ 
+	{-StreamName Down7 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-16 -DMac 00-00-88-00-00-26 -Length $Data(PktLength)} \
+	{-StreamName Up8 -Vlan [expr $oltCVlan+7] -SMac 00-00-88-00-00-27 -DMac 00-00-22-00-00-17 -Length $Data(PktLength)} \  
+	{-StreamName Down8 -Vlan $tgLMNetPMainVlan -SMac 00-00-22-00-00-17 -DMac 00-00-88-00-00-27 -Length $Data(PktLength)} \
+	" );		   	                                                                          
+			   	                       	                                                                          
+	
+资源释放:
+
+210.延迟一段时间:
+    IasCommonDelay(-Time 2);   
+    
+220.删除业务流:
+    IasVlanServPortDelete(-TermName $oltTerm -DeleteType vlan -StartVlan $tgLMNetPMainVlan -ServiceType gpon -FrameSlotPort $gponOltFSPort);
+	
+230.删除端口下的所有ONT: 
+    IasOntDel(-TermName $oltTerm -FrameSlot $gponOltFrameSlot -Port $gponOltPort); 
+
+240.删除线路模板: 
+    IasOntLineProfileDelete (-TermName $oltTerm  -ProfileId $Data(gponLineProfileId1));
