@@ -1,0 +1,300 @@
+#!!============================================================
+# 过 程 名：AsicTgSingleStreamSendAndStatAutoGenPara
+# 程 序 包：   
+# 功能类别：
+# 过程描述：对Tesgine端口进行控制，单端口发包统计,SendPort按设定速率发送报文。 
+#          速率百分比是按GE速度进行计算的，不管自协商速率为多少
+#要求：
+#     	必须提供Tsu及端口号，提供方式见下面说明：
+#        
+#
+#  发送参数说明：
+#		 1. -TsuID		(可选)TSU的ID，如果端口号以"x/y"形式传入，该参数值无效
+#		 4. -Time		(可选)发送报文的时间，单位为秒 ,默认为60秒 #   
+#		10. -SendPort	(必选)发送报文的端口号,从1开始,以“TsuId/端口号”形式表示时可不带TsuID,本参数优先，同时兼容“端口号”形式，端口号形式必须加TsuID参数 
+#		11. -StaPort	(必选)接收报文的端口号,从1开始,以“TsuId/端口号”形式表示时可不带TsuID,本参数优先，同时兼容“端口号”形式，端口号形式必须加TsuID参数 
+#
+#
+#  发送速率参数
+#     3. -SendMode  (可选)端口报文发送模式：SINGLE_BURST：单次突发；  CONTINUE；连续发送。默认为CONTINUE。 
+#           (可扩展实现) CONT_MULTI_BURST：连续多次突发；MULTI_BURST：多次突发；  TIMED_BURST：在一段时间内突发； 
+#     4. -BurPacket  (可选)Burst发送的报文数量
+#     5. -RateMode   (可选)端口速率模式：形式分别为百分比（Percentage），每秒多少包（PacketsPerSecond），每秒多少千bit（Kbps）；
+#     6. -Speed      (可选)端口速率, 50%或1000形式表示；
+#		在-Percentage后面的Speed表示的是设置速率是满速率的百分之多少，比如50%,则speed为50；
+#		在-PacketsPerSecond后面的Speed表示的是该端口每秒发送的包数；  
+#		在-Kbps后面的Speed表示的是该端口每秒发送的数据（包括CRC,前导字节以及数据之间的间隔也计算在内），以kbit为单位:
+#
+# 统计参数
+#       3. -StatMode       (可选)统计模式，按流还是端口；PORT、STREAM
+#		4. -StreamName     (必选)按流统计时，必须提供名，端口时为可选
+#       5. -StaItem        (可选)统计项，默认为“PS_TX_STREAM_PACKETS  PS_RX_STREAM_PACKETS”
+#
+#	报文构造参数	
+#     20. -StreamSum    （必选）添加的流总数
+#     21. -StreamPara   （必选）每条流的参数 以-StreamPara ｛｛流1参数｝｛流1参数｝｛流1参数｝｝形式出现，
+#						具体参数有，见AsicTgPortPacketFormation。
+#			   2. -StreamName     (必选)流名，以下为可选
+#			   2. -RepeatCount    (可选)Stream的repeat count, 决定流的流量
+#		       3. -ProType:       (可选)(可选)发送报文类型:包括ARP、IP、TCP、UDP、 PPPOE;如果不赋值，默认为普通的IP包
+#		                          	    ARP      ARP协议类型
+#		                          		IP       IP协议类型
+#		                          	    TCP      TCP协议类型
+#		                          		UDP      UDP协议类型
+#										PPPOE    PPPOE协议报文 
+#										CUSTOM   用户自定义报文
+#			   4. -Vlan：         (可选)报文的外层VLAN ID，没有该选项表示不带vlan,功能同-PktArgs，范围1～4095	 	
+#		       5. -SMac	 	    (可选，PPPOE必选)构造SmbPort报文的源mac,十六进制 0000.0000.0000。
+#			   6. -DMac	 	    (可选，PPPOE必选)构造SmbPort报文的目的mac。 默认为广播
+#			   7. -SIp		  	(可选)构造SmbPort报文的源ip,十进制的 192.168.1.1
+#			   8. -DIp		  	(可选)构造SmbPort报文的目的ip 
+#		       9. -InnerVlan     (可选)报文的内层VLAN ID，无该选项表示没有内层vlan。
+#		       11. -EthType      (无用)报文ETH协议类型，缺省值0x0800,必须为十六进制
+#		       12. -LenType      (可选)Stream的长度类型和相关值,Type MaxLen Step：Stream的长度类型和相关值；Type为STREAM_RANDOM/STREAM_STEP，分别表示Stream长度随机，长度跳变；MaxLen：Stream的最大长度；Step：Stream的长度类型为跳变的时候需要，表示Stream的长度跳变步长；
+#		       14. -Length       (必选)指定的报文(流)长度。默认80
+#		       16. -Pri          (可选)外层Vlan的优先级，范围0～7，缺省为0 功能同-PktArgs
+#		       17. -Cfi          (可选)外层Vlan的配置字段，范围0～1，缺省为0 功能同-PktArgs 
+#		       18. -InPri        (可选)内层Vlan的优先级，范围0～7，缺省为0 
+#		       19. -InCfi        (可选)内层Vlan的配置字段，范围0～1，缺省为0 
+#		       20. -PayLoad      (可选)填充值；CUSTOM时必选，-PayLoad  [UserDefineData]: 
+#			   22. -PktArgs      (可选) 构造这种类型报文中的扩展参数，格式为-PktArgs {-vlan xxx}
+#							   具体见参数后央附录：
+#
+#	
+# 使用实例: 
+#		set tsu [AsicTgPortEngross -TgIp 192.168.1.2 ]
+#       AsicTgSingleStreamSendAndStat  -TsuID $tsu -SendPort 1 -StreamSum 1 -StreamPara {{-StreamName G1 -Vlan 10 -InnerVlan 200 -InPri 6}}  
+#       AsicTgSingleStreamSendAndStat  -TsuID $tsu -SendPort 1 -StaPort 2 -StatMode port -StreamSum 2 -StreamPara {{-StreamName G1 -Vlan 10 -InnerVlan 200 -InPri 6}} 
+#
+#
+# 返 回 值： 
+#       成功返回:
+#			0   xx : 发送正常(0 Suc001 $retSta)	 
+#			
+#
+#			Err001 : 加载license文件失败
+#			Err002 : 添加TSU失败
+#			Err003 : 添加DUT地址和端口地址失败
+#			Err004 : 添加流失败
+#			Err006 : 填充报文失败
+#			Err007 : Tesgine连接失败
+#			Err008 : 流报文修改失败
+#           Err009 : 改变端口模式失败
+#           Err0011 : 设置流速率失败
+#
+# 作    者：余  剑(00110482)
+# 生成日期：2009-12-3
+# 修改记录：
+#  
+# ++++ yujian 00110482，修改开始于2011-1-12 18:57:35 ++++
+#	为了满足多卡的控制，把TsuID和ID两个参数合为一个参数 
+#	修改SendPort和StaPort参数的形式
+#
+# 修改日期：
+#!!===========================================================================    
+
+proc AsicTgSingleStreamSendAndStatAutoGenPara {args} {
+	puts "==AsicTgSingleStreamSendAndStatAutoGenPara:$args"
+	package require Tesgine	
+	
+	set Err001Msg {加载license文件失败}
+	set Err002Msg {添加TSU失败}
+	set Err004Msg {添加流报文失败}
+	set Err005Msg {选择统计项失败}
+	set Err006Msg {填充报文失败}
+	set Err007Msg {Tesgine连接失败}
+	set Err008Msg {流报文修改失败}	
+	set Err009Msg {改变端口模式失败}
+	set Err0011Msg {设置流速率失败}
+		
+	
+	#初始化变量
+	CommonArgsGet $args -Time ctime -TsuID tsu -SendPort sendPort -StaPort staPort -StatMode statMode \
+				-StreamSum  sSum  -StreamPara sPara -Speed speed -ItemMode itemMode
+	
+	set  slength 80
+	set  sPara [lindex $sPara 0]	
+	CommonArgsGet $sPara -Vlan uvlan -SMac sMac -DMac dMac -StreamName streamName -Length slength
+	
+	# 把参数中的StreamSum和 StreamPara值删除；
+	CommonArgsDel args -StreamSum -StreamPara -TsuID	
+	
+	#根据提供起始vlan、smac、dmac自动生成流参数
+	set sPara [AsicTgStreamParaGenerator -StreamName $streamName -Vlan $uvlan -SMac $sMac -DMac $dMac -StreamSum $sSum -Length $slength]
+	
+	#　判断发送端口、接收端口参数,如果参数形式不为x/y，则Tsu取TsuID传入的值，否则tsu取x/y的X值，端口取x/y的y值。
+	set matchVal 	$sendPort
+	set exp {^([0-9]{1,2})/([0-9]{1,2})$}		
+	set regret1 [regexp $exp $matchVal mat1 tsu sendPort]
+	
+	set matchVal 	$staPort
+	set regret1 [regexp $exp $matchVal mat1 staTsu staPort]
+	if { 1 != $regret1 } {
+		set staTsu		$tsu
+	} ; # end if
+	
+	
+	if {![info exists ctime] || ([info exists ctime] && [string match $ctime "{}"] )} {
+	    set ctime "30"   
+	} else { 
+	    set ctime $ctime
+	}
+	
+	if {![info exists sSum] || ([info exists sSum] && [string match $sSum "{}"] )} {
+	    set sSum  "1"   
+	}
+	
+		
+	if {![info exists itemMode] || ([info exists itemMode] && [string match $itemMode "{}"] )} {
+	    set itemMode  "TOTAL"   
+	}
+	
+	set ret1       {}
+	set retSta     {}
+	set steamNum   "$sSum" 
+	
+	#1 要保证Tsu在前面已经连接；
+	
+	#2、构造报文，根据流参数进行构造
+	for {set ss  0} { $ss <= [expr $steamNum - 1 ] } { incr ss } {
+		set streamPara [lindex $sPara $ss]		
+		catch {eval AsicTgPortPacketFormation -TsuID $tsu -Port $sendPort $streamPara} msg1
+		if {"0" != $msg1} {
+			::TestLib::ShowTraceMessage -level 10 -color RED -msg "(AsicTgSingleStreamSendAndStatAutoGenPara)在指定Tsu $tsu 端口 $sendPort 端口构造第$ss 流时异常,返回值为：$msg1"
+			lappend ret1 $msg1
+		}
+	}
+	
+	# 2.5 指定流速率
+	for {set ss  0} { $ss <= [expr $steamNum - 1 ] } { incr ss } {
+		set streamPara [lindex $sPara $ss]		
+		CommonArgsGet $streamPara -StreamName sName -StreamLoad streamLoad		
+		
+		if {([info exists streamLoad] && ![string match $streamLoad "{}"] )} {
+ 		
+	 		# 如果有streamLoad参数，则设置流的发送速率
+	 		catch {eval TgGenSetStreamLoad $sName $streamLoad} msg1
+	 		if {$msg1 != "TG_OK" } {
+				::TestLib::ShowTraceMessage -level 10 -color RED -msg "(AsicTgSingleStreamSendAndStatAutoGenPara)指定 $sName 流速时异常, $streamLoad Kb/s　,返回信息：$msg1 "
+				AsicTgAppPortModeGet -TsuID $tsu -Port $sendPort
+				lappend ret1 Err004
+	 		
+	 		} else {
+	 			::TestLib::ShowTraceMessage -level 10 -color blue -msg "(AsicTgSingleStreamSendAndStatAutoGenPara)指定了 $sName 的流速, $streamLoad Kb/s"
+	 		
+	 		} ;# end if
+	 		
+	 		unset streamLoad	
+		
+		} ; # end if 		
+		
+	}
+	
+	#3、如果指定了speed参数，就进行端口速率设置:
+	if { ([info exists speed] && ![string match $speed "{}"] )} {
+		#3、指定端口发送速率：
+		catch {eval  AsicTgPortSendMode -TsuID $tsu -Port $sendPort $args } msg1 
+		if {"0" != $msg1} {
+			::TestLib::ShowTraceMessage -level 10 -color RED -msg "(AsicTgSingleStreamSendAndStatAutoGenPara)在指定Tsu $tsu 端口 $sendPort 发送速率时异常,返回信息为：$msg1"
+			lappend ret1 $msg1
+		}
+	    
+	} ; # end if 
+
+	#4、 开始发送报文：
+	catch {eval  AsicTgTsuStartSend -Time $ctime } msg1 
+	if {"0" != $msg1} {
+		::TestLib::ShowTraceMessage -level 10 -color RED -msg "(AsicTgSingleStreamSendAndStatAutoGenPara)开始发送报文异常，返回信息为：$msg1"
+		lappend ret1 $msg1
+	} 
+	
+	
+	#10、 停止发送报文
+	set itemMode [string toupper $itemMode]
+	if {1 == [string equal $itemMode "TOTAL"]} {
+		catch {eval AsicTgTsuStopSend} msg1 
+		if {"0" != $msg1} {
+		::TestLib::ShowTraceMessage -level 10 -color RED -msg "(AsicTgSingleStreamSendAndStatAutoGenPara)停止发送报文异常，返回信息为：$msg1"
+		lappend ret1 $msg1
+		}
+	}
+	
+	#11、根据统计粒度获取统计返回值：
+	
+	#　先判断统计模式：
+	set statMode [string toupper $statMode]
+	
+#	#　判断统计项模式：并处理。
+#	set itemMode [string toupper $itemMode]
+#	if {1 == [string equal $itemMode "RATE"]} {
+#		# Rate需要处理统计项
+#		if {![info exists staItem] || ([info exists staItem] && [string match $staItem "{}"] )} {
+#			set args [CommonArgsSet $args -StaItem "PS_TX_PPS PS_RX_PPS PS_RX_STREAM_PACKETS P_RX_FILTER_PACKETS" ]
+#			
+#		}
+#	
+#	} ; # end if
+	
+	# 如果是PORT模式，则只获取一次统计值,如果流，刚返回所有流的统计值
+	if {1 == [string equal $statMode "PORT"]} {
+		catch {eval AsicTgPortStatGet -TsuID $tsu		-Port $sendPort  $args } msg1 
+		catch {eval AsicTgPortStatGet -TsuID $staTsu	-Port $staPort   $args } msg2 
+			
+		if {([lsearch $msg1 "0" ] != "0") || ([lsearch $msg2 "0" ] != "0")} {
+			::TestLib::ShowTraceMessage -level 10 -color RED -msg "(AsicTgSingleStreamSendAndStatAutoGenPara)返回端口统计值异常，返回信息为：$msg1==$msg2"
+			lappend ret1 $msg1
+		} else {
+			CommonArgsGet $msg1 -SumSta  sendV
+			CommonArgsGet $msg2 -SumSta  recV
+			lappend retSta "-SendTra {$sendV} -RecTra {$recV}"
+		
+		}
+		
+	} else {
+		for {set ss  0} { $ss <= [expr $steamNum - 1 ] } { incr ss } {
+			set streamPara [lindex $sPara $ss]		
+			CommonArgsGet $streamPara -StreamName streamName
+			catch {eval AsicTgPortStatGet -TsuID $tsu		-Port $sendPort -StreamName $streamName $args } msg1 
+			catch {eval AsicTgPortStatGet -TsuID $staTsu	-Port $staPort  -StreamName $streamName $args } msg2 
+			
+			if {([lsearch $msg1 "0" ] != "0") || ([lsearch $msg2 "0" ] != "0")} {
+				::TestLib::ShowTraceMessage -level 10 -color RED -msg "(AsicTgSingleStreamSendAndStatAutoGenPara)返回第 $ss 流统计值异常，返回信息为：$msg1==$msg2"
+				lappend ret1 $msg1
+			} else {
+				CommonArgsGet $msg1 -SumSta  sendV
+				CommonArgsGet $msg2 -SumSta  recV
+				lappend retSta "-SendTra {$sendV} -RecTra {$recV}"
+			
+			}
+		} ; #end for
+	
+	} ; #end if
+	
+	#停止发送报文
+	set itemMode [string toupper $itemMode]
+	if {1 == [string equal $itemMode "RATE"]} {
+		catch {eval AsicTgTsuStopSend} msg1 
+		if {"0" != $msg1} {
+		::TestLib::ShowTraceMessage -level 10 -color RED -msg "(AsicTgSingleStreamSendAndStatAutoGenPara)停止发送报文异常，返回信息为：$msg1"
+		lappend ret1 $msg1
+		}
+	}
+	
+	#15、删除Tsu下的所有流，方便后续流的操作；	
+	catch {eval  AsicTgTsuRemoveStream  -TsuID $tsu} msg1 
+	if {$msg1 != "0"} {
+		::TestLib::ShowTraceMessage -level 10 -color RED -msg "(AsicTgSingleStreamSendAndStatAutoGenPara)断开与Tesgine时异常，返回信息为：$msg1"
+		lappend ret1 $msg1
+	}
+	
+	#20、返回值：
+	if {1 == [string equal $ret1 {}]} {
+		return "0 Suc001 -ReturnRet {$retSta}"
+		
+	} else {
+		return $ret1
+		
+	}
+	
+	
+} 
