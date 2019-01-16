@@ -1,0 +1,66 @@
+	#!!================================================================
+    #  过 程 名：	IasNewModeOntPortSet
+    #  函数说明：	配置业务模板中的ONT端口能力集
+    #               
+	#  参数说明：
+	#               -TermName：     (必选)窗口名；
+	#               -ProfileId:     (必选)ONT线路模板编号;
+	#               -XponMode:      (可选)默认为gpon,可以输入为epon
+        #               -PotsPort:      (可选)POTS端口数目
+        #               -EthPort:       (可选)以太端口数目
+        #               -TdmPort:       (可选)TDM端口数目
+        #               -TdmPortType:   (可选)TDM端口类型
+        #               -TdmSrvType:    (可选)TDM业务类型
+        #               -MocaPort:      (可选)MOCA端口数目
+        #               -CatvPort:      (可选)CATV端口数目 
+        #               
+	#  返 回 值：
+	#              
+	#  注意事项： 
+	#  使用实例： 	
+	#               IasNewModeOntPortSet -TermName TERM1 -ProfileId 30 -PotsPort 16 -EthPort 40  -TdmPort 8 -TdmPortType E1 -TdmSrvType TDMoGEM -MocaPort 8 -CatvPort 16    
+	#               IasNewModeOntPortSet -TermName TERM1 -XponMode -ProfileId 30 -PotsPort 1 -EthPort 1
+	#  对应命令： 
+	#               Ont-port pots 1 eth 1 tdm 1 tdm-type E1 tdm-srvtype TDMoGEM moca 2 catv 2
+	#               
+	#              
+	#	   
+	#  作    者：   肖飞 00110447
+	#  生成时间：   2008-08-22
+	#  修改纪录：  
+    #           2008-8-30 x00110447 修改模式
+    #           2008-09-08 xiaofei 00110447 增加提交数据部分  
+	#!!================================================================
+	
+	proc IasNewModeOntPortSet { args } {
+	    #-----------------------------------
+		#  定义私有标签码
+		#-----------------------------------
+		set XponMode gpon
+		#--------------------------------------------
+		# 定义CommonCommand的函数的各个参数
+		#--------------------------------------------
+		#1.返回值规则列表:
+		set returnPara " "
+		
+		#2.定义命令生成表达式;
+		set cmds {ont-port [pots %PotsPort%] [eth %EthPort%] [tdm %TdmPort%] [tdm-type %TdmPortType%] [tdm-srvtype %TdmSrvType%] [moca %MocaPort%] [catv %CatvPort%]}
+                
+		#3. 设置目标模式(可选);
+		CommonArgsGet $args -ProfileId ProfileId -XponMode XponMode -TermName TermName
+	        set mode "ONTSRVPROFILE $XponMode $ProfileId"
+	  
+	   	#4. sendPara参数，设置tsend发送命令需要的参数-s -t等;
+		set Prompt  [list "#"]
+		
+		set TimeOut 10000
+		
+        set ret [CommonCommand -Cmds "$cmds" -RetList "$returnPara" -Mode "$mode" -VarList "$args" -S $Prompt -T $TimeOut ]
+        set ret2 [IasNewModeOntProfileDataCommit -TermName $TermName]
+        return $ret
+               
+	
+	} ;# end of proc  IasNewModeOntPortSet 
+#===============================================================
+#---------------------------测试记录----------------------------
+#===============================================================
