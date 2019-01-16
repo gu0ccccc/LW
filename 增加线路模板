@@ -1,0 +1,73 @@
+	#!!================================================================
+	#  过 程 名：	IasOntLineProfileAdd
+	#  函数说明：	创建并进入指定的ONT线路模板配置模式
+	#  参数说明：
+	#               -TermName:           (必选)窗口名； 
+	#               -OntLineProfileType:(必选)线路模板类型gpon或epon
+	#               -ProfileId:         (可选)ONT线路模板编号
+    #               -ProfileName:       (可选)ONT线路模板名
+	#  返 回 值：	
+	#			  错误返回错误列表,正确无返回值
+	#
+	#  注意事项： 
+	#  使用实例： 
+	#               IasOntLineProfileAdd -TermName TERM1 -OntLineProfileType gpon -ProfileId 30
+	#  对应命令： 
+	#               ont-lineprofile gpon profile-id 30
+	#               
+	#	   
+	#  作    者：   xiaofei 00110447  
+	#  生成时间：   2008-8-18
+	#  修改纪录：   2008-8-28 x00110447 修改命令行
+	#               2008-8-30 x00110447 添加Suc001
+	#              
+	#!!================================================================
+	
+	proc IasOntLineProfileAdd { args } {
+	    #-----------------------------------
+		#  定义私有标签码
+		#-----------------------------------
+		
+		#--------------------------------------------
+		# 定义CommonCommand的函数的各个参数
+		#--------------------------------------------
+		#1.返回值规则列表: 
+		set Err001 {Failure:\s*The\s*profile\s*type\s*is\s*not\s*EPON}
+		set Err001Msg {模板类型不是EPON,无法进入EPON线路配置模式,请进入GPON模板配置模式}
+		set Err002 {Failure:\s*The\s*profile\s*type\s*is\s*not\s*GPON}
+		set Err002Msg {模板类型不是GPON,无法进入GPON线路配置模式,请进入GPON模板配置模式}
+		set Err003 {Failure:\s*The\s*profile\s*name\s*is\s*different\s*with\s*the\s*name\s*which\s*is\s*used\s*by\s*the\s*input\s*profile\s*ID}
+		set Err003Msg {模板名称与所输入的模板ID使用的名称不同,请使用指定ID的模板名称}
+		set Err004 {Failure:\s*The\s*profile\s*number\s*has\s*already\s*reach\s*the\s*upper\s*limit}
+		set Err004Msg {模板已达最大规格}
+		set Err005 {Failure:\s*The\s*profile\s*name\s*is\s*not\s*the\s*default\s*name}
+		set Err005Msg {模板名称不是输入模板的默认名称,如果使用默认名称请与当前模板匹配的默认名称}
+		set Err006 {Failure:\s*The\s*profile\s*does\s*not\s*exist}
+		set Err006Msg {输入模板不存在}    
+		set Err007 {Failure:\s*The\s*input\s*profile\s*type\s*is\s*wrong}
+		set Err007Msg {输入的模板类型错误}
+		set Suc001 {config.\S+.\S+profile\S+}
+		set returnPara {Err001 Err002 Err003 Err004 Err005 Err006 Err007 Suc001}
+		
+		
+
+		#2. 设置目标模式(可选);
+	    set mode "CfgMode" 
+	  
+        #3. 设置命令行
+        set cmds {ont-lineprofile %OntLineProfileType% [profile-id %ProfileId%] [profile-name %ProfileName%]}
+                
+	    
+		#5. 构建最后发送的命令的参数;
+		set cmd {CommonCommand -Cmds "$cmds" -RetList "$returnPara" -Mode "$mode" -VarList "$args" -S [list "#" ] -regexp 1 -T 10000}
+		
+		set ret [eval $cmd] 
+		if {[string index $ret 0] == 0} {
+		 set ret1 [CommonCommand -Cmds "quit" -RetList "$returnPara" -VarList "$args" -S [list "#"] -regexp 1 -T 10000]
+		}
+		return $ret
+	
+	} ;# end of proc IasOntLineProfileAdd
+#===============================================================
+#---------------------------测试记录----------------------------
+#===============================================================
