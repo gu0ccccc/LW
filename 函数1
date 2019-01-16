@@ -1,0 +1,85 @@
+#!!================================================================
+	#  过 程 名：	Iasolttcontadd
+	#  函数说明：	创建Tcont模板
+	#  参数说明：
+	#               -TermName：     		(必选)窗口名；
+	#               -ProfileId:     		(可选)profile的ID号10～512
+	#               -ProfileName:   		(可选)profile的名称
+	#               -TcontType:     		(必选)Tcont的类型，可以为type1|type2|type3|type4|type5
+	#            	-bandwidth_compensate: 	(可选)no|yes是否开启带宽补偿,在选择type1类型时有此参数  
+	#				-FixBandwidth:  		(可选)Tcont的固定带宽
+    #               -AssureBandwidth: 		(可选)Tcont的确保带宽；
+    #               -MaxBandwidth:    		(可选)Tcont的最大带宽；  
+
+	#  返 回 值：
+	#
+	#  注意事项： 
+	#  使用实例： 
+	#               IasOltTcontAdd -TermName TERM1 -ProfileId 20 -TcontType type1 -FixBandwidth 10000
+	#  对应命令： 
+	#               dba-profile add profile-id 20 type1 fix 10000
+	#	   
+	#  作    者：   李济华	60000587
+	#  生成时间：   2006-06-05
+	#  修改纪录：   like 60014294 命令行改变
+	#               2008-08-14 n00102867 修改对应命令  
+	#               xiaoning 00119914 修改在diagnose模式下进行添加，多两项目参数additional-bandwidth， assignment-frequency
+	#!!================================================================
+	
+	proc Iasolttcontadd { args } {
+	    #-----------------------------------
+		#  定义私有标签码
+		#-----------------------------------
+		#定义失败标签
+		set Err001Msg {Failure: The DBA-profile has already existed}
+		set Err001 {Failure\s*:\s*The\s*DBA-profile\s*has\s*already\s*existed} 
+		
+		set Err002Msg {Failure: The max bandwidth is less than the assured bandwidth}
+		set Err002 {Failure\s*:\s*The\s*max\s*bandwidth\s*is\s*less\s*than\s*the\s*assured\s*bandwidth} 
+		
+		set Err003Msg {Failure: The max bandwidth is less than the sum of assured bandwidth and fixed bandwidth}
+		set Err003 {Failure\s*:\s*The\s*max\s*bandwidth\s*is\s*less\s*than\s*the\s*sum\s*of\s*assured\s*bandwidth\s*and\s*fixed\s*bandwidth}
+		
+		#定义成功标签
+		set Suc001Msg {Attention: DBA-profile}
+		set Suc001  {Attention\s*:\s*DBA-profile}  
+		
+		
+		
+		#--------------------------------------------
+		# 定义CommonCommand的函数的各个参数
+		CommonArgsGet $args -TermName TermName -ProfileId ProfileId -TcontType TcontType -FixBandwidth FixBandwidth -AssureBandwidth AssureBandwidth -MaxBandwidth MaxBandwidth -bandwidth_compensate bandwidth_compensate -Mode Mode
+		#--------------------------------------------
+		#1.返回值规则列表:
+	
+		set returnPara {Err001 Err002 Err003 Suc001}
+		
+		
+		#2.定义命令生成表达式;
+		#dba-profile add profile-id 500 Type1 fix 1024 assignment-frequency calculate-period
+		set TcontType [string tolower $TcontType]
+		#puts "TcontType==$TcontType"
+		switch $TcontType {
+			               "type5" {set cmds {dba-profile add [profile-id %ProfileId%] [profile-name %ProfileName%] %TcontType% [fix %FixBandwidth%] [assure %AssureBandwidth%] [max %MaxBandwidth%] assignment-frequency %Mode% additional-bandwidth non-assure} }
+		                   "type6" {set cmds {dba-profile add [profile-id %ProfileId%] [profile-name %ProfileName%] type5 [fix %FixBandwidth%] [assure %AssureBandwidth%] [max %MaxBandwidth%] assignment-frequency %Mode% additional-bandwidth best-effort} }
+		                    default {set cmds {dba-profile add [profile-id %ProfileId%] [profile-name %ProfileName%] %TcontType% [fix %FixBandwidth%] [assure %AssureBandwidth%] [max %MaxBandwidth%] assignment-frequency %Mode%} } 
+		                   }
+		
+		#3. 设置目标模式(可选);
+	    
+	    set mode "DiagMode"
+	    
+	   	#4. sendPara参数，设置tsend发送命令需要的参数-s -t等;
+		set Prompt  [list "%% #" ]
+		
+		set TimeOut 10000
+		
+		#5. 构建最后发送的命令的参数;
+		set ret [CommonCommand -Cmds "$cmds" -RetList "$returnPara" -Mode "$mode" -VarList "$args" -S $Prompt -T $TimeOut]
+                   		
+		return $ret
+	
+	} ;# end of proc IasOltTcontAdd
+#===============================================================
+#---------------------------测试记录----------------------------
+#===============================================================
