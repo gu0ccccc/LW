@@ -1,0 +1,57 @@
+#!!================================================================
+#  过 程 名： 单个或多个GemPort映射相同Vlan不同的pri、不同vlan、不同的pri(业务映射)
+#  函数说明： 	
+#  参数说明：
+#                       
+#    			        
+#  返 回 值：
+#               
+#               	
+#               	
+#  注意事项： 
+#  使用实例：  IasMultiOntGemMappingAdd  -TermName $oltTerm -ProfileId 300 -GemIndex 0 -MappingIndex 0 -Pri 4 -Num 2
+#    		
+#  命令形式：
+#        
+#
+#  作    者：   
+#  生成时间：   
+#  修改纪录：   
+#!!============================================================
+ 
+proc IasMultiOntGemMappingAdd { args } {
+    	
+ 	CommonArgsGet $args -TermName oltTerm -ProfileId gponLineProfileId -GemIndex gponOltGemIndex -MappingIndex gponOltMapIndex -CVlanId oltCVlan -Num num -Pri pri -GemPortNum gemportnum
+    if {[info exists oltCVlan] } {
+           if {[info exists pri ] } {
+                  for {set i 1 } {$i <= $num } {incr i} {
+                       IasNewModeOntGemMappingAdd -TermName $oltTerm -ProfileId $gponLineProfileId -GemIndex $gponOltGemIndex -Priority $pri -MappingIndex $gponOltMapIndex -CVlanId $oltCVlan
+                       incr gponOltMapIndex 
+                       incr pri
+#                       incr oltCVlan
+                  }
+           } else {
+                    if {[info exists gemportnum ] } {
+                           for {set i 1 } {$i <= $num } {incr i} {
+                           IasNewModeOntGemMappingAdd -TermName $oltTerm -ProfileId $gponLineProfileId -GemIndex $gponOltGemIndex -MappingIndex $gponOltMapIndex -CVlanId $oltCVlan
+                           incr gponOltGemIndex
+                           incr oltCVlan
+                           }
+                    } else {
+                            for {set i 1 } {$i <= $num } {incr i} {
+                            IasNewModeOntGemMappingAdd -TermName $oltTerm -ProfileId $gponLineProfileId -GemIndex $gponOltGemIndex -MappingIndex $gponOltMapIndex -CVlanId $oltCVlan
+                            incr gponOltMapIndex
+                            incr oltCVlan
+                            }
+                    }
+           }
+    } else {
+                  for {set i 1 } {$i <= $num } {incr i} {
+                       IasNewModeOntGemMappingAdd -TermName $oltTerm -ProfileId $gponLineProfileId -GemIndex $gponOltGemIndex -MappingIndex $gponOltMapIndex -Priority $pri
+                       incr gponOltMapIndex
+                       incr pri
+                  }
+    }
+
+           return 0
+}
